@@ -1,0 +1,14 @@
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: volsync-postgress
+spec:
+  sourcePVC: postgres-data 
+  trigger:
+    schedule: "*/5 * * * *"
+  rclone:
+    rcloneConfigSection: "rclone-bucket"
+    rcloneDestPath: "mazenet-volsync-backup-4/ztnet_postgress-data"
+    rcloneConfig: "rclone-secret"
+    copyMethod: Snapshot

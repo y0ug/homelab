@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: longhorn-ingress
+  namespace: longhorn-system
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.config.default_issuer }}
+    # custom max body size for file uploading like backing image uploading
+    nginx.ingress.kubernetes.io/proxy-body-size: 10000m
+
+spec:
+  ingressClassName: nginx
+  tls:
+    - secretName: longhorn-int-mazenet-cert
+      hosts:
+        - longhorn.int.mazenet.org
+  rules:
+  - host: longhorn.int.mazenet.org 
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: longhorn-frontend
+            port:
+              number: 80

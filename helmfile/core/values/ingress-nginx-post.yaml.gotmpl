@@ -1,0 +1,19 @@
+---
+global:
+  fullnameOverride: {{trimSuffix "-post" .Release.Name}} 
+
+rawResources:
+  service-monitor:
+    apiVersion: operator.victoriametrics.com/v1beta1
+    kind: VMServiceScrape
+    spec:
+      spec:
+        endpoints:
+        - port: metrics
+        namespaceSelector:
+          matchNames:
+          - ingress-nginx
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: {{.Release.Namespace}} 
+            app.kubernetes.io/component: controller

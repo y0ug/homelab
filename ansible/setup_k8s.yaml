@@ -1,0 +1,49 @@
+---
+- name: Setup LVM on /dev/sdb and mount to /var/lib/longhorn
+  hosts: k8s 
+  become: true
+  tasks:
+    - name: Install deps 
+      ansible.builtin.apt:
+        pkg:
+        - open-iscsi
+        - nfs-common
+        - cryptsetup
+    - name: Install metal deps 
+      ansible.builtin.apt:
+        pkg:
+        - intel-media-va-driver-non-free
+        - systemd-timesyncd
+      when: is_bare_metal | default(false)
+
+    - name: Start and enable systemd-timesyncd 
+      ansible.builtin.service:
+        name: systemd-timesyncd 
+        state: started
+        enabled: yes
+      when: is_bare_metal | default(false)
+
+    - ansible.builtin.include_role:
+        name: add_drive
+      vars:
+        target_device: "{{longhorn_device}}" 
+        target_mount: "/var/lib/longhorn"
+
+    - ansible.builtin.include_role:
+        name: add_drive
+      vars:
+        target_device: "{{cache_device}}" 
+        target_mount: "/mnt/cache"
+      when: cache_device | default(false) 
+
+  # roles:
+  #   - role: add_drive
+  #     vars:
+  #       target_device: "{{longhorn_device}}" 
+  #       target_mount: "/var/lib/longhorn"
+  #
+  #   - role: add_drive
+  #     vars:
+  #       target_device: "{{cache_device}}" 
+  #       target_mount: "/mnt/cache"
+  #     when: cache_device | default(false) 

@@ -1,0 +1,33 @@
+role: Agent
+customConfig:
+  # mandatory because /var/lib/vector is ro
+  data_dir: /vector-data-dir
+  api:
+    enabled: true
+    address: 127.0.0.1:8686
+    playground: false
+
+  sources:
+    k8s:
+      type: kubernetes_logs
+
+  sinks:
+    vlogs:
+      inputs:
+      - "k8s" # only take sampled data
+      type: "elasticsearch"
+      endpoints:
+      - "http://vm.int.mazenet.org:9428/insert/elasticsearch/"
+      mode: "bulk"
+      bulk:
+        index: "vector-%Y.%m.%d"
+      api_version: "v8"
+      healthcheck:
+        enabled: false
+      compression: "gzip"
+      query:
+        _msg_field: "message"
+        _time_field: "timestamp"
+        _stream_fields: "kubernetes.pod_name"
+        ignore_fields: "log.offset,event.original"
+

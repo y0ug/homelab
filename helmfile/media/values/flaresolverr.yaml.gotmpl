@@ -1,0 +1,43 @@
+---
+controllers:
+  main:
+    strategy: Recreate
+    replicas: 1
+    containers:
+      main:
+        image:
+          repository: ghcr.io/flaresolverr/flaresolverr
+          pullPolicy: IfNotPresent
+          tag: latest
+        probes:
+          readiness:
+            enabled: true
+          liveness:
+            enabled: true
+        env: {}
+
+service:
+  main:
+    controller: main
+    ports:
+      http:
+        port: 8191 
+
+ingress:
+  main:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+    hosts:
+      - host: &host "flaresolverr.{{ .Values.domain }}"
+        paths:
+          - path: /
+            service:
+              identifier: main
+    tls:
+      - secretName: flaresolverr-tls
+        hosts:
+          - *host
+
+

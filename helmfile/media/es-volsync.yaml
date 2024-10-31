@@ -1,0 +1,17 @@
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: ExternalSecret
+metadata:
+  name: rclone-secret
+spec:
+  refreshInterval: 60s
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: external-secrets-secret-store-scw
+  target:
+    name: rclone-secret 
+    creationPolicy: Owner
+  dataFrom:
+    - extract:
+        key: path:/k8s/prod/core/volsync-rclone 
+        version: latest_enabled

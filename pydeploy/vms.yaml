@@ -1,0 +1,41 @@
+vms:
+  k8s-controller-01:
+    vmid: 115
+    ram: 4096
+    vcpus: 8
+
+  k8s-worker-01:
+    vmid: 116
+    ram: 16384
+    vcpus: 8
+    disks:
+      scsi1: "local-nvme:256,iothread=on"
+      scsi2: "local-nvme:512,iothread=on"
+
+defaults:
+  tags: "pydeploy"
+  desc: None
+  target_node: "pve002"
+  cpu: "host"
+  sockets: 1
+  cores: 8
+  numa: true
+  balloon: 0
+  agent: 1
+  onboot: True
+  qemu_os: "l26"
+  hotplug: "network,disk,usb"
+  #hotplug: "network,disk,usb,memory,cpu"
+  bios: "ovmf"
+  # bios: "seabios"
+  boot: "order=scsi0;ide2;net0"
+  tablet: false
+  scsihw: "virtio-scsi-single"
+  networks:
+    # net0: virtio,firewall=false,bridge=vmbr0,tag=101
+    net0: virtio,firewall=false,bridge=k8s
+  disks:
+    ide2: "local:iso/preseed-debian-12.7.0-amd64-netinst.iso,media=cdrom"
+    scsi0: "local-nvme:64,iothread=false"
+    efidisk0: "local-nvme:1,pre-enrolled-keys=true"
+

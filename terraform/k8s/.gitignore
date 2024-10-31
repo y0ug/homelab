@@ -1,0 +1,4 @@
+*.tfvars
+output/
+*.tfstate
+*.tfstate.*

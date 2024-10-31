@@ -1,0 +1,71 @@
+---
+- name: Setup LVM on /dev/sdb and mount to /var/lib/longhorn
+  hosts: k8s 
+  become: true
+  tasks:
+    - name: Install deps 
+      ansible.builtin.apt:
+        pkg:
+        - open-iscsi
+
+    - name: Check if /dev/sdb exists
+      stat:
+        path: /dev/sdb
+      register: sdb_check
+
+    - name: Check if /dev/vdb exists
+      stat:
+        path: /dev/vdb
+      register: vdb_check
+
+    - name: Set the device to use (either /dev/sdb or /dev/vdb)
+      set_fact:
+        target_device: "{{ '/dev/sdb' if sdb_check.stat.exists else '/dev/vdb' }}"
+      when: sdb_check.stat.exists or vdb_check.stat.exists
+
+    - name: Fail if neither /dev/sdb nor /dev/vdb is found
+      fail:
+        msg: "Neither /dev/sdb nor /dev/vdb exists."
+      when: not (sdb_check.stat.exists or vdb_check.stat.exists)
+
+    - name: Create a physical volume on {{target_device}}
+      community.general.lvg:
+        pvs: "{{ target_device }}"
+        vg: vg_longhorn
+      ignore_errors: true
+
+    - name: Create a logical volume for longhorn (100% of space)
+      community.general.lvol:
+        vg: vg_longhorn
+        lv: lv_longhorn
+        size: 100%FREE
+      ignore_errors: true
+
+    - name: Format the logical volume with ext3
+      filesystem:
+        fstype: ext4
+        dev: /dev/vg_longhorn/lv_longhorn
+      ignore_errors: true
+
+    - name: Create /var/lib/longhorn directory if it doesn't exist
+      file:
+        path: /var/lib/longhorn
+        state: directory
+      ignore_errors: true
+
+    - name: Mount the logical volume to /var/lib/longhorn
+      mount:
+        path: /var/lib/longhorn
+        src: /dev/vg_longhorn/lv_longhorn
+        fstype: ext4
+        state: mounted
+      ignore_errors: true
+
+    - name: Ensure the mount is persistent in fstab
+      mount:
+        path: /var/lib/longhorn
+        src: /dev/vg_longhorn/lv_longhorn
+        fstype: ext4
+        opts: defaults
+        state: present
+      ignore_errors: true

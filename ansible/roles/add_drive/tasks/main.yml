@@ -1,0 +1,64 @@
+---
+- name: Install necessary packages
+  ansible.builtin.apt:
+    pkg:
+    - parted
+  become: true
+
+- name: Check if device exists
+  stat:
+    path: "{{ target_device }}"
+  register: device
+  become: true
+
+- name: Fail if no drive found
+  fail:
+    msg: "No drive found to mount at {{ target_device }}"
+  when: not device.stat.exists
+  become: true
+
+- name: Find the real device using readlink
+  command: "readlink -f {{ target_device }}"
+  register: real_device
+  become: true
+
+- name: Set real device fact
+  ansible.builtin.set_fact:
+    real_device: "{{ real_device.stdout }}"
+
+- name: Partition the disk with one ext4 partition using 100%
+  community.general.parted:
+    device: "{{ real_device }}"
+    label: gpt
+    number: 1
+    state: present
+    fs_type: ext4
+  ignore_errors: true
+  become: true
+
+- name: Format the partition as ext4
+  community.general.filesystem:
+    dev: "{{ real_device }}1"
+    fstype: ext4
+  ignore_errors: true
+  become: true
+
+- name: Create mount directory if it doesn't exist
+  file:
+    path: "{{ target_mount }}"
+    state: directory
+  become: true
+
+- name: Get UUID of the partition
+  command: "blkid -s UUID -o value {{ real_device }}1"
+  register: part_uuid
+  become: true
+
+- name: Ensure the mount is persistent in fstab
+  mount:
+    path: "{{ target_mount }}"
+    src: "UUID={{ part_uuid.stdout }}"
+    fstype: ext4
+    opts: defaults
+    state: mounted
+  become: true

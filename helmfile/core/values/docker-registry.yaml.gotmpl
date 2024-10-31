@@ -1,0 +1,24 @@
+persistence:
+  enabled: true
+  size: 20Gi
+  deleteEnabled: true
+
+secrets:
+  haSharedSecret: {{.Values.dockerRegistryHaShareSecret }}
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - oci.{{ .Values.config.domain }}
+    secretName: registry-tls
+  hosts:
+  - oci.{{ .Values.config.domain }}
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    cert-manager.io/cluster-issuer: {{ .Values.config.default_issuer }}
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+          more_set_headers "Access-Control-Allow-Origin: *";
+          more_set_headers "Access-Control-Allow-Methods: HEAD,GET,OPTIONS,DELETE"; 
+          more_set_headers "Access-Control-Allow-Headers: Authorization,Accept,Cache-Control"; 

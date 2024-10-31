@@ -1,0 +1,9 @@
+apiVersion: stackgres.io/v1
+kind: SGScript
+metadata:
+ name: stackgres-script
+spec:
+ scripts:
+ - name: create-my-database
+   script: |
+        create database ztnet owner postgres;

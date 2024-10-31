@@ -1,0 +1,145 @@
+---
+defaultPodOptions:
+  hostname: ztnet
+#   securityContext:
+#     sysctls:
+#     - name: net.ipv6.conf.all.disable_ipv6
+#       value: "1"
+#     - name: net.ipv6.conf.default.disable_ipv6
+#       value: "1"
+controllers:
+  main:
+    strategy: Recreate
+    replicas: 1
+    containers:
+
+      ztnet:
+        image:
+          repository: sinamics/ztnet
+          pullPolicy: IfNotPresent
+          tag: latest
+        env:
+          - name: NEXTAUTH_URL
+            value: "https://ztnet.int.mazenet.org"
+          - name: NEXTAUTH_URL_INTERNAL
+            value: "http://ztnet:3000"
+          - name: NEXTAUTH_SECRET
+            value: {{.Values.ztnetNextAuthSecret}} 
+          - name: POSTGRES_USER
+            valueFrom:
+              secretKeyRef:
+                name: database-cluster-app
+                key: username
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: database-cluster-app
+                key: password 
+          - name: POSTGRES_HOST 
+            valueFrom:
+              secretKeyRef:
+                name: database-cluster-app
+                key: host 
+          - name: POSTGRES_PORT 
+            valueFrom:
+              secretKeyRef:
+                name: database-cluster-app
+                key: port 
+          - name: POSTGRES_DB
+            valueFrom:
+              secretKeyRef:
+                name: database-cluster-app
+                key: dbname
+        envFrom:
+          - secret: {{.Release.Name}}-oauth2 
+
+      zerotier:
+        image:
+          repository: zyclonite/zerotier 
+          pullPolicy: IfNotPresent
+          tag: latest
+        securityContext:
+          capabilities:
+            add:
+              - NET_ADMIN
+              - SYS_ADMIN
+
+service:
+  main:
+    ipFamilyPolicy: PreferDualStack
+    ipFamilies:
+     - IPv6
+     - IPv4
+    controller: main
+    ports:
+      http:
+        port: 3000 
+        protocol: HTTP
+  zerotier:
+    controller: main
+    type: LoadBalancer
+    ipFamilyPolicy: RequireDualStack
+    ports:
+      ztnet:
+        port: 9993
+        protocol: UDP
+
+ingress:
+  main:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/description: Zerotier management 
+      gethomepage.dev/group: Admin 
+      gethomepage.dev/icon: ztnet.png
+      gethomepage.dev/name: ztnet 
+    hosts:
+      - host: &host "ztnet.{{ .Values.domain }}"
+        paths:
+          - path: /
+            service:
+              identifier: main
+    tls:
+      - secretName: ztnet-tls
+        hosts:
+          - *host
+
+persistence:
+  zerotier:
+    enabled: true
+    type: persistentVolumeClaim
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    # advancedMounts:
+    #   main:
+    #     zerotier:
+    globalMounts:
+        - path: /var/lib/zerotier-one
+  tun:
+    enabled: true
+    type: hostPath #CharDevice
+    hostPath: /dev/net/tun
+    advancedMounts:
+      main:
+        zerotier:
+          - path: /dev/net/tun 
+
+rawResources:
+  oauth2-secret:
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    spec:
+      spec:
+        refreshInterval: 60s 
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: external-secrets-secret-store-scw
+        target:
+          name: {{.Release.Name}}-oauth2 
+          creationPolicy: Owner
+        dataFrom:
+          - extract:
+              key: path:/k8s/prod/apps/ztnet
+              version: latest_enabled

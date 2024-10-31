@@ -1,0 +1,38 @@
+---
+global:
+  fullnameOverride: cert-manager 
+
+rawResources:
+  cf-apikey:
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    spec:
+      spec:
+        refreshInterval: 60s
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: external-secrets-secret-store-scw
+        target:
+          name: cf-apikey
+          creationPolicy: Owner
+        dataFrom:
+          - extract:
+              key: path:/k8s/prod/core/cert-manager-cf 
+              version: latest_enabled
+  letsencrypt-prod:
+    apiVersion: cert-manager.io/v1
+    kind: ClusterIssuer
+    spec:
+      spec:
+        acme:
+          email: hca443@gmail.com
+          server: https://acme-v02.api.letsencrypt.org/directory
+          privateKeySecretRef:
+            name: prod-issuer-account-key
+          solvers:
+            - dns01:
+                cloudflare:
+                  apiTokenSecretRef:
+                    name: cf-apikey
+                    key: apikey
+              selector: {}

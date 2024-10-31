@@ -1,0 +1,61 @@
+---
+- name: Setup LVM on /dev/sdb and mount to /var/lib/longhorn
+  hosts: k8s 
+  become: true
+  vars:
+    target_mount: /var/lib/longhorn
+  tasks:
+    - name: Install deps 
+      ansible.builtin.apt:
+        pkg:
+        - open-iscsi
+        - parted
+
+    - name: "Check if {{target_device}}"
+      stat:
+        path: "{{target_device}}"
+      register: device 
+
+    - name: Fail if no drive found 
+      fail:
+        msg: "no drive to found to be mount {{target_device}}" 
+      when: not device.stat.exists 
+
+    - name: Find the real device using readlink
+      command: "readlink -f {{ target_device}}"
+      register: real_device
+
+    - ansible.builtin.set_fact:
+        real_device: "{{real_device.stdout}}"
+
+    - name: "Partition the disk {{ real_device }} with one ext4 partition using 100%"
+      community.general.parted:
+        device: "{{real_device}}" 
+        label: gpt
+        number: 1
+        state: present
+        fs_type: ext4
+      ignore_errors: true
+
+    - name: Format the partition as ext4
+      community.general.filesystem:
+        dev: "{{ real_device }}1"
+        fstype: ext4
+      ignore_errors: true
+
+    - name: "Create {{target_mount}} directory if it doesn't exist"
+      file:
+        path: "{{target_mount}}"
+        state: directory
+
+    - name: "Get UUID of the part {{real_device}}1"
+      command: "blkid -s UUID -o value {{real_device}}1"
+      register: part_uuid 
+
+    - name: Ensure the mount is persistent in fstab
+      mount:
+        path: "{{target_mount}}"
+        src: "UUID={{ part_uuid.stdout }}"
+        fstype: ext4
+        opts: defaults
+        state: mounted 

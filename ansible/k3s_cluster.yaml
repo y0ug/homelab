@@ -1,0 +1,16 @@
+---
+- name: Build a cluster with HA control plane
+  hosts: k3s_cluster
+  vars:
+    k3s_become: true
+    k3s_state: installed
+    k3s_server:
+      write-kubeconfig-mode: "0644"
+      disable:
+        - traefik
+        - servicelb
+      cluster-cidr: 10.96.0.0/12,fd00::/56
+      service-cidr: 10.244.0.0/16,fd01::/108
+      flannel-ipv6-masq: true
+  roles:
+    - role: xanmanning.k3s

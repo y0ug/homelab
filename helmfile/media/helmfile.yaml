@@ -1,0 +1,52 @@
+repositories:
+- name: bjw-s
+  url: https://bjw-s.github.io/helm-charts
+
+environments:
+  default:
+    values:
+    - ../env/default.yaml
+
+templates:
+  default: &default
+    namespace: media
+    chart: bjw-s/app-template
+    values:
+      - values/{{`{{ .Release.Name }}`}}.yaml.gotmpl
+      
+---
+releases:
+- name: plex
+  inherit:
+    - template: default 
+
+
+
+- name: prowlarr 
+  inherit:
+    - template: default 
+
+- name: flaresolverr 
+  inherit:
+    - template: default 
+
+- name: sabnzbd 
+  inherit:
+    - template: default 
+
+- name: filebrowser 
+  inherit:
+    - template: default 
+
+- name: qbittorrent
+  inherit:
+    - template: default 
+
+- name: radarr 
+  inherit:
+    - template: default 
+
+- name: sonarr 
+  inherit:
+    - template: default 
+

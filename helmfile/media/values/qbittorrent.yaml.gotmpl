@@ -1,0 +1,133 @@
+---
+defaultPodOptions:
+  nodeSelector:
+    app: dl-node
+
+controllers:
+  main:
+    strategy: Recreate
+    replicas: 1
+    containers:
+      main:
+        image:
+          repository: ghcr.io/hotio/qbittorrent
+          pullPolicy: IfNotPresent
+          tag: latest
+        probes:
+          readiness:
+            enabled: true
+          liveness:
+            enabled: true
+        env: {}
+
+      gluetun:
+        dependsOn: main
+        image:
+          repository: qmcgaw/gluetun
+          tag: latest
+        env:
+          FIREWALL_INPUT_PORTS: 8080
+          FIREWALL_VPN_INPUT_PORTS: 5854
+          VPN_SERVICE_PROVIDER: airvpn
+          VPN_TYPE: wireguard
+          WIREGUARD_MTU: 1320
+          WIREGUARD_PRIVATE_KEY: aHs/QduHWYS2W2Y/sx0x3iz6WBS85pTjC5leGlAdaWI=
+          WIREGUARD_PRESHARED_KEY: jFWyUZ92EaJsq/2Znx3vmzO+nIWEJmRuZCLGdTDehKM=
+          WIREGUARD_ADDRESSES: 10.160.143.252/24,fd7d:76ee:e68f:a993:7b34:c389:d929:debd/128
+          SERVER_COUNTRIES: Netherlands
+        securityContext:
+          capabilities:
+            add:
+              - NET_ADMIN
+
+service:
+  main:
+    controller: main
+    ports:
+      http:
+        port: 8080
+
+ingress:
+  main:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/description: Torrent downloader 
+      gethomepage.dev/group: Media
+      gethomepage.dev/icon: qbittorrent.png
+      gethomepage.dev/name: qbittorrent 
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    hosts:
+      - host: &host "torrent.{{ .Values.domain }}"
+        paths:
+          - path: /
+            service:
+              identifier: main
+    tls:
+      - secretName: torrent-tls
+        hosts:
+          - *host
+
+persistence:
+  config:
+    enabled: true 
+    type: persistentVolumeClaim
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    globalMounts:
+      - path: /config
+    dataSourceRef:
+          kind: ReplicationDestination
+          apiGroup: volsync.backube
+          name: {{.Release.Name}}-config-dest 
+
+  downloads:
+    enabled: true
+    type: hostPath
+    hostPath: /mnt/cache/qbittorrent
+    globalMounts:
+      - path: /downloads
+
+  data:
+    enabled: true
+    type: persistentVolumeClaim
+    existingClaim: {{ .Values.data_pvc }} 
+    globalMounts:
+      - path: /data
+  
+
+
+rawResources:
+  config-source:
+    apiVersion: volsync.backube/v1alpha1
+    kind: ReplicationSource
+    spec:
+      spec:
+        sourcePVC: {{.Release.Name }}-config
+        trigger:
+          schedule: "*/30 * * * *"
+        rclone:
+          rcloneConfigSection: "rclone-bucket"
+          rcloneDestPath: "mazenet-volsync-backup-4/{{.Release.Name}}-config"
+          rcloneConfig: "rclone-secret"
+          copyMethod: Snapshot
+
+
+  config-dest:
+      apiVersion: volsync.backube/v1alpha1
+      kind: ReplicationDestination
+      spec:
+        spec:
+          trigger:
+            manual: restore-backup-2
+          rclone:
+            rcloneConfigSection: "rclone-bucket"
+            rcloneDestPath: "mazenet-volsync-backup-4/{{.Release.Name}}-config"
+            rcloneConfig: "rclone-secret"
+            copyMethod: Snapshot
+            accessModes: [ReadWriteOnce]
+            capacity: 1Gi

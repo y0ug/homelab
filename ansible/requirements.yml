@@ -1,0 +1,9 @@
+---
+roles:
+  - name: xanmanning.k3s
+    version: "v3.4.4"
+
+collections:
+  - name: community.general
+    version: ">=9.0.0"
+    source: https://galaxy.ansible.com

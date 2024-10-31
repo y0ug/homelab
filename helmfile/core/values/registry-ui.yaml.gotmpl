@@ -1,0 +1,14 @@
+ui:
+  dockerRegistryUrl: https://oci.{{ .Values.config.domain }}
+  deleteImages: true
+  ingress:
+    enabled: true
+    host: "registry.{{ .Values.config.domain }}"
+    ingressClassName: nginx
+    tls:
+    - hosts:
+      - registry.{{ .Values.config.domain }}
+      secretName: registry-ui-tls
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      cert-manager.io/cluster-issuer: {{ .Values.config.default_issuer }}

@@ -1,0 +1,85 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: whoami
+  labels:
+    app: whoami
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: whoami
+  template:
+    metadata:
+      labels:
+        app: whoami
+      annotations:
+        prometheus.io/path: "/metrics" 
+        prometheus.io/port: "80"
+        prometheus.io/scrape: "true"
+    spec:
+      containers:
+        - name: whoami
+          image: traefik/whoami
+          ports:
+            - name: web
+              containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whoami
+
+spec:
+  ports:
+    - name: web
+      port: 80
+      targetPort: web
+
+  selector:
+    app: whoami
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: whoami
+  annotations:
+    cert-manager.io/cluster-issuer: cert-manager-letsencrypt-prod 
+    nginx.ingress.kubernetes.io/auth-signin: https://sso.k8s.int.mazenet.org/oauth2/start?rd=https://$host$escaped_request_uri
+    nginx.ingress.kubernetes.io/auth-url: https://sso.k8s.int.mazenet.org/oauth2/auth?allowed_groups=media-admins,download-admins
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/server-snippet: |
+      client_max_body_size 0;
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+      - whoami.k8s.int.mazenet.org
+      secretName: whoami-k8s-int-mazenet-cert
+  rules:
+  - host: whoami.k8s.int.mazenet.org 
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: whoami
+            port:
+              number: 80 
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: service-monitor 
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: vmoperator
+      app.kubernetes.io/name: victoria-metrics-operator
+  namespaceSelector:
+    matchNames:
+      - vm
+  endpoints:
+  - port: http

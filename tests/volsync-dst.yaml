@@ -1,0 +1,16 @@
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationDestination 
+metadata:
+  name: volsync-postgress-dest
+spec:
+  trigger:
+    manual: restore-backup-2
+  rclone:
+    rcloneConfigSection: "rclone-bucket"
+    rcloneDestPath: "mazenet-volsync-backup-4/ztnet_postgress-data"
+    rcloneConfig: "rclone-secret"
+    copyMethod: Snapshot
+    accessModes: [ReadWriteOnce]
+    capacity: 5Gi
+

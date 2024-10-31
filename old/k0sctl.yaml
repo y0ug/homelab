@@ -1,0 +1,61 @@
+apiVersion: k0sctl.k0sproject.io/v1beta1
+kind: Cluster
+metadata:
+  name: k0s-cluster
+spec:
+  hosts:
+    - ssh:
+        address: k8s-controller-01.int.mazenet.org 
+        user: deploy
+        port: 22
+      role: controller
+      #noTaints: true
+    - ssh:
+        address: k8s-controller-02.int.mazenet.org 
+        user: deploy
+        port: 22
+      role: controller 
+    - ssh:
+        address: k8s-worker-01.int.mazenet.org 
+        user: deploy
+        port: 22
+      role: worker
+    - ssh:
+        address: k8s-worker-02.int.mazenet.org 
+        user: deploy
+        port: 22
+      role: worker
+    - ssh:
+        address: k8s-worker-03.int.mazenet.org 
+        user: deploy
+        port: 22
+      role: worker 
+    - ssh:
+        address: k8s-worker-04.int.mazenet.org 
+        user: deploy
+        port: 22
+      role: worker 
+    - ssh:
+        address: k8s-worker-05.int.mazenet.org 
+        user: deploy
+        port: 22
+      role: worker 
+  k0s:
+    version: null
+    versionChannel: stable
+    dynamicConfig: false
+    config:
+        spec:
+          network:
+            nodeLocalLoadBalancing:
+              enabled: true
+              type: EnvoyProxy
+            provider: calico
+            calico:
+              mode: "bird"
+            dualStack:
+              enabled: true
+              IPv6podCIDR: "fd00::/108"
+              IPv6serviceCIDR: "fd01::/108"
+          telemetry:
+            enabled: false 

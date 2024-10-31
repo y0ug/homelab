@@ -1,0 +1,127 @@
+---
+controllers:
+  main:
+    strategy: Recreate
+    replicas: 1
+    containers:
+      main:
+        image:
+          repository: ghcr.io/hotio/sonarr
+          pullPolicy: IfNotPresent
+          tag: latest
+        probes:
+          readiness:
+            enabled: true
+          liveness:
+            enabled: true
+            custom: true
+            spec:
+              exec:
+                command:
+                - /usr/bin/env
+                - bash
+                - -c
+                - curl --fail localhost:8989/api/v3/system/status?apiKey=`IFS=\> && while
+                  read -d \< E C; do if [[ $E = "ApiKey" ]]; then echo $C; fi; done < /config/config.xml`
+              failureThreshold: 5
+              initialDelaySeconds: 60
+              periodSeconds: 10
+              successThreshold: 1
+              timeoutSeconds: 10
+        env: {}
+
+service:
+  main:
+    controller: main
+    ports:
+      http:
+        port: 8989 
+
+ingress:
+  main:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/description: TV Show seeker 
+      gethomepage.dev/group: Media
+      gethomepage.dev/icon: sonarr.png
+      gethomepage.dev/name: Sonarr 
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    hosts:
+      - host: &host "sonarr.{{ .Values.domain }}"
+        paths:
+          - path: /
+            service:
+              identifier: main
+    tls:
+      - secretName: sonarr-tls
+        hosts:
+          - *host
+
+persistence:
+  config:
+    enabled: true 
+    type: persistentVolumeClaim
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    globalMounts:
+      - path: /config
+    dataSourceRef:
+          kind: ReplicationDestination
+          apiGroup: volsync.backube
+          name: {{.Release.Name}}-config-dest 
+
+  data:
+    enabled: true
+    type: persistentVolumeClaim
+    existingClaim: {{ .Values.data_pvc }} 
+    globalMounts:
+      - path: /data
+
+rawResources:
+  config-source:
+    apiVersion: volsync.backube/v1alpha1
+    kind: ReplicationSource
+    spec:
+      spec:
+        sourcePVC: {{.Release.Name }}-config
+        trigger:
+          schedule: "*/30 * * * *"
+        rclone:
+          rcloneConfigSection: "rclone-bucket"
+          rcloneDestPath: "mazenet-volsync-backup-4/{{.Release.Name}}-config"
+          rcloneConfig: "rclone-secret"
+          copyMethod: Snapshot
+
+  config-dest:
+      apiVersion: volsync.backube/v1alpha1
+      kind: ReplicationDestination
+      spec:
+        spec:
+          trigger:
+            manual: restore-backup-2
+          rclone:
+            rcloneConfigSection: "rclone-bucket"
+            rcloneDestPath: "mazenet-volsync-backup-4/{{.Release.Name}}-config"
+            rcloneConfig: "rclone-secret"
+            copyMethod: Snapshot
+            accessModes: [ReadWriteOnce]
+            capacity: 1Gi
+  config-dest:
+      apiVersion: volsync.backube/v1alpha1
+      kind: ReplicationDestination
+      spec:
+        spec:
+          trigger:
+            manual: restore-backup-2
+          rclone:
+            rcloneConfigSection: "rclone-bucket"
+            rcloneDestPath: "mazenet-volsync-backup-4/{{.Release.Name}}-config"
+            rcloneConfig: "rclone-secret"
+            copyMethod: Snapshot
+            accessModes: [ReadWriteOnce]
+            capacity: 1Gi

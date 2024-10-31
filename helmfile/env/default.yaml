@@ -1,0 +1,13 @@
+config:
+  domain: int.mazenet.org
+  sso_auth_signin: https://sso.k8s.int.mazenet.org/oauth2/start?rd=https://$host$escaped_request_uri
+  sso_auth_url: https://sso.k8s.int.mazenet.org/oauth2/auth
+  default_issuer: cert-manager-letsencrypt-prod
+  ns_int_server: 10.83.100.3
+  ns_zone: int.mazenet.org
+  ns_key_algo: hmac-sha512
+  ns_key_name: acme.mazenet.org
+
+domain: int.mazenet.org
+default_issuer: cert-manager-letsencrypt-prod
+data_pvc: nfs-media-pvc

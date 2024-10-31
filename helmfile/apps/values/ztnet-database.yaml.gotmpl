@@ -1,0 +1,24 @@
+cluster:
+  instances: 1
+  initdb:
+    owner: ztnet 
+    database: app 
+  monitoring:
+    customQueries: []
+    disableDefaultQueries: true
+    enabled: false
+  storage:
+    size: 8Gi
+
+backups:
+  enabled: true
+  schedule: "0 * * * *" 
+  retentionPolicy: "7d" 
+
+  destinationPath: "s3://mazenet-cnpg-backup/ztnet"
+  endpointURL: "https://s3.fr-par.scw.cloud"
+  secret:
+    create: false
+    name: "cnpg-backup"
+
+

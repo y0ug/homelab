@@ -1,0 +1,31 @@
+global:
+  domain: argocd.{{ .Values.config.domain }}
+
+configs:
+  cm:
+    admin.enabled: true 
+  rbac:
+    policy.default: 'role:admin'
+
+  params:
+    # We terminate TLS on ingress' level
+    server.insecure: true
+
+server:
+  extraArgs:
+    - --insecure
+  ingress:
+    enabled: true
+    https: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.config.default_issuer }}
+    tls: true
+
+  ingressGrpc:
+    enabled: true
+    tls: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.config.default_issuer }} 
+      nginx.ingress.kubernetes.io/backend-protocol: "GRPC"

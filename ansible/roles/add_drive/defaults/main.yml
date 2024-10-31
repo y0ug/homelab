@@ -1,0 +1,4 @@
+---
+# Default values (can be overridden when role is called)
+target_device: "/dev/sdb"
+target_mount: "/var/lib/longhorn"

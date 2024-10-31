@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  creationTimestamp: "2024-09-24T12:22:20Z"
+  finalizers:
+  - strrl.dev/cloudflare-tunnel-ingress-controller-controlled
+  generation: 2
+  name: whoami-via-cf
+  namespace: default
+  resourceVersion: "1076998"
+  uid: cf57e7e0-4341-4d0c-9c4e-81a91c253d14
+spec:
+  ingressClassName: cloudflare-tunnel
+  rules:
+  - host: whoami2.mazenet.org
+    http:
+      paths:
+      - backend:
+          service:
+            name: whoami
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+status:
+  loadBalancer:
+    ingress:
+    - hostname: 9095d401-033a-4d0c-a395-a21662faf2ed.cfargotunnel.com
+      ports:
+      - port: 443
+        protocol: TCP

@@ -1,0 +1,201 @@
+---
+controllers:
+  main:
+    strategy: Recreate
+    replicas: 1
+    containers:
+      main:
+        image:
+          repository: lscr.io/linuxserver/unifi-network-application
+          pullPolicy: IfNotPresent
+          tag: latest
+        env:
+          - name: MONGO_USER 
+            valueFrom: 
+              secretKeyRef:
+                name: {{.Release.Name}}-mongodb-creds
+                key: MONGO_USER
+          - name: MONGO_PASS
+            valueFrom: 
+              secretKeyRef:
+                name: {{.Release.Name}}-mongodb-creds
+                key: MONGO_PASS
+          - name: MONGO_DBNAME 
+            valueFrom: 
+              secretKeyRef:
+                name: {{.Release.Name}}-mongodb-creds
+                key: MONGO_DBNAME
+          - name: MONGO_HOST 
+            value: unifi-controller-mongodb 
+          - name: MONGO_PORT
+            value: 27017
+          - name: MONGO_AUTHSOURCE
+            valueFrom: 
+              secretKeyRef:
+                name: {{.Release.Name}}-mongodb-creds
+                key: MONGO_AUTHSOURCE 
+  mongodb:
+    strategy: Recreate
+    replicas: 1
+    containers:
+      mongodb:
+        #hostname: unifi-controller-mongodb
+        image:
+          repository: docker.io/mongo
+          pullPolicy: IfNotPresent
+          tag: 7
+        envFrom:
+          - secret: mongodb-creds 
+
+service:
+  main:
+    controller: main
+    ports:
+      http:
+        port: 8443
+        protocol: TCP 
+  mongodb:
+    controller: mongodb 
+    ports:
+      http:
+        port: 27017 
+        protocol: TCP 
+
+  public:
+    annotations:
+      # not working
+      metallb.universe.tf/load-balancer-ips: "10.83.101.79"
+    controller: main
+    type: LoadBalancer
+    #ipFamilyPolicy: RequireDualStack
+    ports:
+      http: # device/controller comm
+        port: 8080 
+        protocol: HTTP
+      stun:
+        port: 3478 
+        protocol: UDP 
+      discovery:
+        port: 10001 
+        protocol: UDP 
+
+
+secrets:
+  mongodb-creds:
+    enabled: true
+    stringData:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: {{.Values.unifiMongoRootPassword }} 
+      MONGO_USER: unifi
+      MONGO_PASS: {{.Values.unifiMongoUnifiPassword}} 
+      MONGO_DBNAME: unifi
+      MONGO_AUTHSOURCE: admin
+
+ingress:
+  main:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/description: Manage unifi devices 
+      gethomepage.dev/group: Admin
+      gethomepage.dev/icon: unifi.png
+      gethomepage.dev/name: Unifi Controller 
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    hosts:
+      - host: &host "unifi.{{ .Values.domain }}"
+        paths:
+          - path: /
+            service:
+              identifier: main
+    tls:
+      - secretName: unifi-tls
+        hosts:
+          - *host
+configMaps:
+  initdb:
+    enabled: true
+    data:
+      init-mongo.sh: |
+        #!/bin/bash
+        if which mongosh > /dev/null 2>&1; then
+          mongo_init_bin='mongosh'
+        else
+          mongo_init_bin='mongo'
+        fi
+        "${mongo_init_bin}" <<EOF
+        use ${MONGO_AUTHSOURCE}
+        db.auth("${MONGO_INITDB_ROOT_USERNAME}", "${MONGO_INITDB_ROOT_PASSWORD}")
+        db.createUser({
+          user: "${MONGO_USER}",
+          pwd: "${MONGO_PASS}",
+          roles: [
+            { db: "${MONGO_DBNAME}", role: "dbOwner" },
+            { db: "${MONGO_DBNAME}_stat", role: "dbOwner" }
+          ]
+        })
+        EOF
+
+persistence:
+  config:
+    enabled: true
+    type: persistentVolumeClaim
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    #globalMounts:
+    #  - path: /config
+    advancedMounts:
+      main:
+        main:
+        - path: /config
+  db:
+    enabled: true
+    type: persistentVolumeClaim
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    #globalMounts:
+    #  - path: /config
+    advancedMounts:
+      mongodb:
+        mongodb:
+        - path: /data/db
+  initdb:
+    enabled: true
+    type: configMap
+    name: {{.Release.Name}}-initdb
+    advancedMounts:
+      mongodb:
+        mongodb:
+          - path: /docker-entrypoint-initdb.d/init-mongo.sh
+            subPath: init-mongo.sh
+            readOnly: true
+
+
+    
+#rawResources:
+#   mongodb:
+#     apiVersion: mongodbcommunity.mongodb.com/v1
+#     kind: MongoDBCommunity
+#     spec:
+#       spec:
+#         members: 2
+#         type: ReplicaSet
+#         version: "7.0.14"
+#         security:
+#           authentication:
+#             modes: ["SCRAM"]
+#         users:
+#           - name: unifi 
+#             db: unifi 
+#             passwordSecretRef:
+#               name: unifi-controller-mongo-unifi-password
+#             roles:
+#               - name: dbOwner
+#                 db: unifi
+#             scramCredentialsSecretName: {{.Release.Name}}-unifi
+#         additionalMongodConfig:
+#           storage.wiredTiger.engineConfig.journalCompressor: zlib

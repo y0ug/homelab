@@ -1,0 +1,112 @@
+---
+controllers:
+  main:
+    strategy: Recreate
+    replicas: 1
+    pod:
+      nodeSelector:
+        intel.feature.node.kubernetes.io/gpu: "true"
+    containers:
+      main:
+        image:
+          repository: ghcr.io/hotio/plex 
+          pullPolicy: IfNotPresent
+          tag: latest
+        probes:
+          readiness:
+            enabled: true
+          liveness:
+            enabled: true
+        env: 
+          PLEX_CLAIM_TOKEN: 
+        resources:
+          limits:
+            gpu.intel.com/i915: "1"
+          requests:
+            gpu.intel.com/i915: "1"
+
+service:
+  main:
+    controller: main
+    ports:
+      http:
+        port: 32400 
+
+ingress:
+  main:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/description: Media Server 
+      gethomepage.dev/group: Media
+      gethomepage.dev/icon: plex.png
+      gethomepage.dev/name: Plex 
+    hosts:
+      - host: &host "plex.{{ .Values.domain }}"
+        paths:
+          - path: /
+            service:
+              identifier: main
+    tls:
+      - secretName: plex-tls
+        hosts:
+          - *host
+
+persistence:
+  config:
+    enabled: true 
+    type: persistentVolumeClaim
+    accessMode: ReadWriteOnce
+    size: 10Gi
+    globalMounts:
+      - path: /config
+    dataSourceRef:
+      kind: ReplicationDestination
+      apiGroup: volsync.backube
+      name: {{.Release.Name}}-config-dest 
+
+  # transcode:
+  #   enabled: false
+  #   type: persistentVolumeClaim
+  #   globalMounts:
+  #     - path: /transcode
+
+  data:
+    enabled: true
+    type: persistentVolumeClaim
+    existingClaim: {{ .Values.data_pvc }} 
+    globalMounts:
+      - path: /data
+        # subPath:  
+
+rawResources:
+  config-source:
+    apiVersion: volsync.backube/v1alpha1
+    kind: ReplicationSource
+    spec:
+      spec:
+        sourcePVC: {{.Release.Name }}-config
+        trigger:
+          schedule: "*/30 * * * *"
+        rclone:
+          rcloneConfigSection: "rclone-bucket"
+          rcloneDestPath: "mazenet-volsync-backup-4/plex-config"
+          rcloneConfig: "rclone-secret"
+          copyMethod: Snapshot
+
+  config-dest:
+    apiVersion: volsync.backube/v1alpha1
+    kind: ReplicationDestination
+    spec:
+      spec:
+        trigger:
+          manual: restore-backup-1
+        rclone:
+          rcloneConfigSection: "rclone-bucket"
+          rcloneDestPath: "mazenet-volsync-backup-4/plex-config"
+          rcloneConfig: "rclone-secret"
+          copyMethod: Snapshot
+          accessModes: [ReadWriteOnce]
+          capacity: 10Gi

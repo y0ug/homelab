@@ -1,0 +1,19 @@
+terminationGracePeriodSeconds: 5
+sources:
+  - ingress
+  - service
+provider: rfc2136
+extraArgs:
+  - --rfc2136-host={{ .Values.config.ns_int_server }}
+  - --rfc2136-port=53
+  - --rfc2136-zone={{ .Values.config.ns_zone }}
+  - --rfc2136-tsig-keyname={{ .Values.config.ns_key_name }}
+  - --rfc2136-tsig-secret={{ .Values.nsKeySecret }}
+  - --rfc2136-tsig-secret-alg={{ .Values.config.ns_key_algo }}
+  - --rfc2136-tsig-axfr
+  - --rfc2136-min-ttl=30s
+interval: 30s
+txtOwnerId: k8s
+txtPrefix: external-dns-
+domainFilters:
+  - {{ .Values.config.ns_zone }} 

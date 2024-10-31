@@ -1,0 +1,70 @@
+---
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.config.default_issuer }}
+  hosts:
+    - sso.k8s.int.mazenet.org
+  tls:
+    - secretName: oauth2-proxy-tls
+      hosts:
+        - sso.k8s.int.mazenet.org
+config:
+  configFile: |
+    reverse_proxy = true
+    provider = "oidc"
+    provider_display_name = "Authentik"
+    code_challenge_method = "S256"
+
+    upstreams = [
+        "file://dev/null"
+    ]
+    scope = "openid email profile groups"
+    oidc_issuer_url = "https://auth.mazenet.org/application/o/oauth2-proxy-prod/"
+    redirect_url = "https://sso.k8s.int.mazenet.org/oauth2/callback"
+
+    email_domains = "*"
+    whitelist_domains = ["*.mazenet.org"]
+    cookie_domains = ["mazenet.org"]
+
+    skip_provider_button = true
+
+proxyVarsAsSecrets: false
+
+extraEnv:
+  - name: OAUTH2_PROXY_CLIENT_ID
+    valueFrom:
+      secretKeyRef:
+        name: oauth2-proxy-oidc-secret
+        key: client_id
+  - name: OAUTH2_PROXY_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: oauth2-proxy-oidc-secret
+        key: client_secret
+  - name: OAUTH2_PROXY_COOKIE_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: oauth2-proxy-oidc-secret
+        key: cookie_secret
+
+
+app-template:
+  rawResources:
+    oidc-secret:
+      apiVersion: external-secrets.io/v1beta1
+      kind: ExternalSecret
+      spec:
+        spec:
+          refreshInterval: 60s 
+          secretStoreRef:
+            kind: ClusterSecretStore
+            name: external-secrets-secret-store-scw
+          target:
+            name: oauth2-proxy-oidc-secret 
+            creationPolicy: Owner
+          dataFrom:
+            - extract:
+                key: path:/k8s/prod/core/oauth2-proxy 
+                version: latest_enabled

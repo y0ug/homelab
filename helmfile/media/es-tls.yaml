@@ -1,0 +1,26 @@
+---
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret 
+metadata:
+  name: pushsecret-tls 
+spec:
+  refreshInterval: 60s
+  deletionPolicy: None 
+  #updatePolicy: IfNotExists
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: external-secrets-secret-store-scw
+  selector:
+    secret:
+      name: plex-tls 
+  data:
+    - match:
+        secretKey: tls.key
+        remoteRef:
+          remoteKey: path:/k8s/prod/media/plex-tls
+          property: tls.key
+    - match:
+        secretKey: tls.crt
+        remoteRef:
+          remoteKey: path:/k8s/prod/media/plex-tls
+          property: tls.crt

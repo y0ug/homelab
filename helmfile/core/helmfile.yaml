@@ -1,0 +1,242 @@
+repositories:
+- name: csi-driver-nfs
+  url: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
+- name: metallb
+  url: https://metallb.github.io/metallb
+- name: external-secrets
+  url: https://charts.external-secrets.io
+- name: external-dns
+  url: https://kubernetes-sigs.github.io/external-dns/
+- name: ingress-nginx 
+  url: https://kubernetes.github.io/ingress-nginx
+- name: jetstack
+  url: https://charts.jetstack.io
+- name: external-dns
+  url: https://kubernetes-sigs.github.io/external-dns/
+- name: vm
+  url: https://victoriametrics.github.io/helm-charts/
+- name: longhorn
+  url: https://charts.longhorn.io
+- name: oauth2-proxy
+  url: https://oauth2-proxy.github.io/manifests
+- name:  strrl.dev
+  url: https://helm.strrl.dev
+- name: argo
+  url: https://argoproj.github.io/argo-helm
+- name: twuni 
+  url: https://helm.twun.io
+- name: joxit
+  url: https://helm.joxit.dev
+- name: vector 
+  url: https://helm.vector.dev
+- name: intel
+  url: https://intel.github.io/helm-charts
+- name: nfd
+  url: https://kubernetes-sigs.github.io/node-feature-discovery/charts
+- name: bjw-s
+  url: https://bjw-s.github.io/helm-charts
+- name: backube
+  url: https://backube.github.io/helm-charts
+- name: piraeus-charts
+  url: https://piraeus.io/helm-charts/ 
+# - name: crunchydata
+#   url: registry.developers.crunchydata.com/crunchydata
+#   oci: true
+# - name: stackgres-charts
+#   url: https://stackgres.io/downloads/stackgres-k8s/stackgres/helm/
+- name: cnpg
+  url: https://cloudnative-pg.github.io/charts
+- name: mongodb
+  url: https://mongodb.github.io/helm-charts
+
+environments:
+  default:
+    values:
+    - ../env/default.yaml
+    secrets:
+    - ../env/secrets.yaml
+
+---
+releases:
+- name: metallb
+  chart: metallb/metallb 
+  namespace: metallb-system
+
+- name: metallb-post
+  namespace: metallb-system
+  chart: bjw-s/app-template
+  values:
+    - ./values/metallb-post.yaml.gotmpl
+  needs:
+    - metallb-system/metallb
+
+- name: vmoperator
+  namespace: monitoring
+  chart: vm/victoria-metrics-operator
+  values:
+    - admissionWebhooks:
+        enabled: false
+
+- name: ingress-nginx
+  namespace: ingress-nginx
+  chart: ingress-nginx/ingress-nginx
+  needs:
+    - monitoring/vmoperator 
+  values:
+    - ./values/ingress-nginx.yaml.gotmpl
+
+- name: ingress-nginx-post
+  namespace: ingress-nginx
+  chart: bjw-s/app-template
+  needs:
+    - monitoring/vmoperator 
+    - ingress-nginx/ingress-nginx 
+  values:
+    - ./values/ingress-nginx-post.yaml.gotmpl
+
+
+- name: external-secrets 
+  namespace: external-secrets
+  chart: external-secrets/external-secrets
+  values:
+    - ./values/external-secrets.yaml.gotmpl
+
+- name: external-secrets-post
+  namespace: external-secrets
+  chart: bjw-s/app-template
+  needs:
+    - external-secrets/external-secrets
+  values:
+    - ./values/external-secrets-post.yaml.gotmpl
+
+- name:  snapshot-controller
+  namespace: kube-system
+  chart: piraeus-charts/snapshot-controller
+
+- name:  csi-driver-nfs
+  namespace: kube-system
+  chart: csi-driver-nfs/csi-driver-nfs
+
+- name: longhorn
+  namespace: longhorn-system
+  chart: longhorn/longhorn
+  values:
+  - ./values/longhorn.yaml.gotmpl
+
+- name: longhorn-post
+  namespace: longhorn-system
+  chart: bjw-s/app-template
+  needs:
+    - monitoring/vmoperator 
+    - longhorn-system/longhorn 
+  values:
+  - ./values/longhorn-post.yaml.gotmpl
+
+- name: volsync 
+  namespace: volsync-system
+  chart: backube/volsync 
+  values:
+  - ./values/volsync.yaml.gotmpl
+
+- name: external-dns
+  namespace: external-dns
+  chart: external-dns/external-dns
+  values:
+    - ./values/external-dns.yaml.gotmpl
+ 
+- name: cert-manager 
+  namespace: cert-manager
+  chart: jetstack/cert-manager
+  needs:
+    - external-secrets/external-secrets
+  values:
+    - values/cert-manager.yaml.gotmpl
+
+- name: cert-manager-post
+  namespace: cert-manager
+  chart: bjw-s/app-template
+  needs:
+    - cert-manager/cert-manager
+  values:
+    - values/cert-manager-post.yaml.gotmpl
+
+- name: oauth2-proxy
+  namespace: oauth2-proxy
+  chart: oauth2-proxy/oauth2-proxy
+  values:
+    - values/oauth2-proxy.yaml.gotmpl
+  dependencies:
+    - chart: bjw-s/app-template
+      version: 3.5.1
+  needs:
+    - external-secrets/external-secrets
+
+- name: ingress-cf-tunnel 
+  namespace: ingress-cf-tunnel
+  chart: strrl.dev/cloudflare-tunnel-ingress-controller
+  set:
+  - name: cloudflare.apiToken
+    value: {{ .Values.cfTunnelApiToken }}
+  - name: cloudflare.accountId
+    value: {{ .Values.cfTunnelAccountId }}
+  - name: cloudflare.tunnelName
+    value: {{ "ingress-k8s-mazenet" }}
+
+
+- name: vector-agent 
+  namespace: monitoring
+  chart: vector/vector 
+  values:
+    - values/vector.yaml.gotmpl
+
+- name: nfd
+  chart: nfd/node-feature-discovery
+  namespace: node-feature-discovery
+
+- name: intel-device-plugins-operator
+  chart: intel/intel-device-plugins-operator
+  namespace: intel-gpu
+  disableValidationOnInstall: true 
+  needs:
+    - node-feature-discovery/nfd
+    - cert-manager/cert-manager
+
+- name: intel-device-plugins-gpu
+  chart: intel/intel-device-plugins-gpu
+  namespace: intel-gpu
+  disableValidationOnInstall: true 
+  needs:
+    - intel-device-plugins-operator
+  values:
+    - values/intel-device-plugins-gpu.yaml.gotmpl
+
+- name: argocd
+  needs: ['cert-manager/cert-manager']
+  namespace: argocd
+  chart: argo/argo-cd
+  installed: false 
+  values:
+    - values/argocd.yaml.gotmpl
+
+- name: docker-registry
+  namespace: docker-registry
+  chart: twuni/docker-registry
+  values:
+    - values/docker-registry.yaml.gotmpl
+
+- name: registry-ui
+  namespace: docker-registry
+  chart: joxit/docker-registry-ui 
+  values:
+    - values/registry-ui.yaml.gotmpl
+
+- name: cpng 
+  namespace: cnpg-system
+  chart: cnpg/cloudnative-pg
+
+- name: mongodb-operator
+  namespace: mongodb-system
+  chart: mongodb/community-operator
+  installed: true 
+  values:
+    - values/mongodb-operator.yaml.gotmpl

@@ -1,0 +1,145 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: netbootxyz
+  name: netbootxyz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: netbootxyz
+  template:
+    metadata:
+      labels:
+        app: netbootxyz
+    spec:
+      containers:
+        - name: netbootxyz
+          resources:
+            limits:
+              memory: 200M
+              cpu: 10m
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: WEB_APP_PORT 
+              value: "3000"
+            - name: "TFTPD_OPTS"
+              value: "--tftp-single-port"
+          image: linuxserver/netbootxyz
+          imagePullPolicy: Always
+          #stdin: true
+          #tty: true
+          volumeMounts:
+          - name: config 
+            mountPath: /config
+          - name: assets 
+            mountPath: /assets
+          ports:
+          - containerPort: 69
+            name: tftp
+            protocol: UDP
+          - containerPort: 3000 
+            name: web-admin 
+          - containerPort: 80 
+            name: web
+      volumes:
+      - name: config 
+        persistentVolumeClaim:
+          claimName: config 
+      - name: assets 
+        persistentVolumeClaim:
+          claimName: assets 
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: assets 
+spec:
+  storageClassName: longhorn
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: config 
+spec:
+  storageClassName: longhorn
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: netbootxyz-admin
+spec:
+  ports:
+  - name: web-admin 
+    port: 3000
+    protocol: TCP
+    targetPort: 3000
+  selector:
+    app: netbootxyz
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: netbootxyz
+spec:
+  ports:
+  - name: web
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  - name: tftp
+    port: 69
+    protocol: UDP
+    targetPort: 69
+  selector:
+    app: netbootxyz
+  sessionAffinity: None
+  type: LoadBalancer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: netbootxyz 
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    external-dns.alpha.kubernetes.io/hostname: netboot.int.mazenet.org
+    # nginx.ingress.kubernetes.io/authentication-snippet: |
+    #   auth_request_set $name_upstream_1 $upstream_oauth2_proxy_1;
+    #
+    #   access_by_lua_block {
+    #     if ngx.var.name_upstream_1 ~= "" then
+    #       ngx.header["Set-Cookie"] = "_oauth2_proxy_1=" .. ngx.var.name_upstream_1 .. ngx.var.auth_cookie:match("(; .*)")
+    #     end
+    #   }
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+      - netboot.int.mazenet.org
+      secretName: netboot-int-mazenet-cert
+  rules:
+  - host: netboot.int.mazenet.org
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: netbootxyz-admin
+            port:
+              number: 3000 

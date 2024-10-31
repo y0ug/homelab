@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monerod
+  namespace: crypto 
+  labels:
+    app: monerod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monerod
+  template:
+    metadata:
+      labels:
+        app: monerod
+    spec:
+      # nodeSelector:
+      #   app: dl-node
+      containers:
+      - name: monerod
+        image: ghcr.io/sethforprivacy/simple-monerod:latest
+        args:
+          - "--rpc-bind-ip=0.0.0.0"
+          - "--enable-dns-blocklist"
+          - "--no-igd"
+          - "--no-zmq"
+          - "--confirm-external-bind"
+          - "--out-peers=1000"
+        ports:
+        - containerPort: 18081
+        volumeMounts:
+        - name: bitmonero-storage
+          mountPath: /home/monero/.bitmonero
+          subPath: bitmonero
+      volumes:
+      - name: bitmonero-storage
+        persistentVolumeClaim:
+          claimName: nfs-blockchains-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  annotations:
+    pv.kubernetes.io/provisioned-by: nfs.csi.k8s.io
+  name: nfs-blockchains-pv
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-blockchains
+  mountOptions:
+    - nfsvers=4.1
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: 10.83.101.5##
+    volumeAttributes:
+      server: 10.83.101.5
+      share: /mnt/hot/blockchains
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-blockchains-pvc
+spec:
+  storageClassName: nfs-blockchains
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monerod-service
+  namespace: crypto 
+  labels:
+    app: monerod
+spec:
+  ports:
+  - port: 18081
+    targetPort: 18081
+  selector:
+    app: monerod
+  type: ClusterIP

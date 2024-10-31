@@ -1,0 +1,70 @@
+# proxmox_vm_qemu.debian-test:
+resource "proxmox_vm_qemu" "debian-test" {
+  name        = "debian-test.mazenet.org"
+  tags        = "terraform"
+  desc        = null
+  target_node = "pve002"
+
+  sockets = 1
+  cores   = 8
+  memory  = 2048
+  balloon = 0
+
+  cpu = "host"
+
+  agent  = 1
+  onboot = true
+
+  qemu_os = "l26"
+
+  hotplug = "network,disk,usb,memory,cpu"
+  bios    = "seabios"
+  boot    = "order=scsi0;ide2;net0"
+
+  tablet = false # cause issue with alpine
+
+  # to enable iothread
+  numa   = true
+  scsihw = "virtio-scsi-single"
+
+  disks {
+    ide {
+      ide2 {
+        cdrom {
+          iso = "local:iso/preseed-debian-12.7.0-amd64-netinst.iso"
+        }
+      }
+    }
+    scsi {
+      scsi0 {
+        disk {
+          size       = "32"
+          storage    = "local-nvme"
+          format     = "raw"
+          backup     = true
+          discard    = true
+          emulatessd = true
+          iothread   = true
+        }
+      }
+      scsi1 {
+        disk {
+          size       = "128G"
+          storage    = "local-nvme"
+          format     = "raw"
+          backup     = true
+          discard    = true
+          emulatessd = true
+          iothread   = true
+        }
+      }
+    }
+  }
+
+  network {
+    bridge   = "vmbr0"
+    firewall = false
+    model    = "virtio"
+    tag      = 101
+  }
+}

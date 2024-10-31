@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "pydeploy"
+version = "0.1.0"
+description = ""
+authors = ["Hugo Caron <hca443@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+proxmoxer = "^2.1.0"
+requests = "^2.32.3"
+paramiko = "^3.5.0"
+python-dotenv = "^1.0.1"
+pyaml = "^24.9.0"
+pydantic = "^2.9.2"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.6.8"
+ruff-lsp = "^0.0.57"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,113 @@
+---
+- name: Rename hosts and configure static IP
+  hosts: dhcp_hosts
+  become: true
+  # vars:
+    # gateway: "192.168.41.1"
+    # netmask: "255.255.255.0"
+    # dns_servers:
+    #   - "10.83.100.2"
+
+  tasks:
+    - name: Gather network facts to identify interface name
+      ansible.builtin.setup:
+        gather_subset: 'network'
+    
+    - name: Set network interface name
+      set_fact:
+        interface_name: "{{ ansible_default_ipv4.interface }}"
+
+
+    - name: Set the hostname based on the Ansible inventory name
+      hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Update /etc/hosts file for new hostname
+      lineinfile:
+        path: /etc/hosts
+        regexp: "^127.0.1.1"
+        line: "127.0.1.1 {{ inventory_hostname }}"
+        state: present
+
+    - name: Disable SSH password authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+        state: present
+        backup: yes
+      notify: Restart SSH
+
+    - name: Ensure SSH root login is disabled
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+        state: present
+        backup: yes
+      notify: Restart SSH
+
+    - name: Remove DHCP configuration from /etc/network/interfaces
+      lineinfile:
+        path: /etc/network/interfaces
+        regexp: "^iface {{ interface_name }} inet dhcp"
+        state: absent
+      notify: Restart networking
+
+    - name: Add static IP configuration to /etc/network/interfaces
+      blockinfile:
+        path: /etc/network/interfaces
+        block: |
+          auto {{ interface_name }}
+          iface {{ interface_name }} inet static
+          address {{ new_ip }}
+          netmask {{ netmask }}
+          gateway {{ gateway }}
+          dns-nameservers {{ dns_servers | join(' ') }}
+      notify: Restart networking
+
+    - name: "Flush handlers"
+      meta: flush_handlers
+
+    # - name: Add SSH host key to known_hosts
+    #   known_hosts:
+    #     name: "{{ new_ip }}"
+    #     key: "{{ lookup('pipe', 'ssh-keyscan -H ' ~ new_ip ) }}"
+    #     path: "~/.ssh/known_hosts"
+    #   delegate_to: localhost
+    #   become: false 
+
+    # - name: Update DNS zone 
+    #   community.general.nsupdate:
+    #     key_name: "acme.mazenet.org"
+    #     key_secret: "5gu4lFOcIb3F/6W5m2UWoRpMfR+z/CkBk8rZ9jFn+Mfv4o6SrP6KnEs+t1Nvq/G3VGSWaMGD9dNBovlCFMf/oQ=="
+    #     key_algorithm: "hmac-sha512"
+    #     server: "10.83.100.3"
+    #     zone: "int.mazenet.org"
+    #     record: "{{ inventory_hostname }}"
+    #     value: "{{ new_ip }}"
+    #     type: A
+    #     ttl: 300
+    #   delegate_to: localhost
+    #   become: false
+    #
+    # - name: Add SSH host key to known_hosts
+    #   known_hosts:
+    #     name: "{{ inventory_hostname }}.int.mazenet.org"
+    #     key: "{{ lookup('pipe', 'ssh-keyscan -H ' ~ inventory_hostname ~ '.int.mazenet.org' ) }}"
+    #     path: "~/.ssh/known_hosts"
+    #   delegate_to: localhost
+    #   become: false 
+  handlers:
+    - name: Restart SSH
+      service:
+        name: ssh
+        state: restarted
+
+    - name: Restart networking
+      service:
+        name: networking
+        state: restarted
+      async: 1
+      poll: 0
+

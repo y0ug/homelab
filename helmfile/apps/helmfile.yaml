@@ -1,0 +1,41 @@
+---
+repositories:
+- name: bjw-s
+  url: https://bjw-s.github.io/helm-charts
+- name: cnpg
+  url: https://cloudnative-pg.github.io/charts
+
+environments:
+  default:
+    values:
+    - ../env/default.yaml
+    secrets:
+    - ../env/secrets.yaml
+
+templates:
+  default: &default
+    chart: bjw-s/app-template
+    values:
+      - values/{{`{{ .Release.Name }}`}}.yaml.gotmpl
+
+---
+releases:
+- name: database
+  namespace: ztnet
+  chart: cnpg/cluster
+  installed: true 
+  values:
+    - values/ztnet-database.yaml.gotmpl
+
+- name: ztnet 
+  namespace: ztnet 
+  installed: true 
+  inherit:
+    - template: default
+
+
+- name: unifi-controller 
+  namespace: unifi-controller
+  installed: true 
+  inherit:
+    - template: default
