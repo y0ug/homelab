@@ -97,7 +97,7 @@ rawResources:
       spec:
         sourcePVC: {{.Release.Name }}-config
         trigger:
-          schedule: "*/5 * * * *"
+          schedule: "0 * * * *"
         rclone:
           rcloneConfigSection: "rclone-bucket"
           rcloneDestPath: "mazenet-volsync-backup-4/{{.Release.Name}}-config"
