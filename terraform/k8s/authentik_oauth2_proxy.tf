@@ -2,6 +2,10 @@ data "authentik_flow" "default-authorization-flow" {
   slug = "default-provider-authorization-implicit-consent"
 }
 
+data "authentik_flow" "default-invalidation-flow" {
+  slug = "default-provider-invalidation-flow"
+}
+
 data "authentik_certificate_key_pair" "generated" {
   name = "authentik Self-signed Certificate"
 }
@@ -18,6 +22,7 @@ resource "authentik_provider_oauth2" "oauth2_proxy_prod" {
   name                   = "oauth2-proxy-prod"
   client_id              = "oauth2-proxy-prod"
   authorization_flow     = data.authentik_flow.default-authorization-flow.id
+  invalidation_flow      = data.authentik_flow.default-invalidation-flow.id
   redirect_uris          = ["https://sso.k8s.int.mazenet.org/oauth2/callback"]
   refresh_token_validity = "hours=24"
   signing_key            = data.authentik_certificate_key_pair.generated.id

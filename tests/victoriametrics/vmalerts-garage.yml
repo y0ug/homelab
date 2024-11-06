@@ -1,0 +1,17 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: garage 
+spec:
+  groups:
+  - name: Alert garage
+    interval: 1s
+    rules:
+      - alert: SenserDoorStateOn
+        expr: sensor_door_state > 0
+        for: 1s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alert door is open"
+          description: "Please closed garage door"

@@ -1,0 +1,19 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAuth
+metadata:
+  name: vm 
+spec:
+  selectAllByDefault: true
+  userNamespaceSelector: {}
+  userSelector: {}
+  ingress:
+    class_name: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: cert-manager-letsencrypt-prod
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/description: Service monitoring
+      gethomepage.dev/group: Admin
+      gethomepage.dev/name: VMui 
+    tlsHosts:
+    - vm-access.int.mazenet.org
+    tlsSecretName: vmauth-tls

@@ -1,0 +1,46 @@
+# vmcluster.yaml
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMCluster
+metadata:
+  name: vm
+spec:
+  retentionPeriod: "120d"
+  replicationFactor: 2
+  vmstorage:
+    replicaCount: 2
+    storageDataPath: "/vm-data"
+    storage:
+      volumeClaimTemplate:
+        spec:
+          resources:
+            requests:
+              storage: "20Gi"
+    resources:
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+  vmselect:
+    replicaCount: 2
+    cacheMountPath: "/select-cache"
+    storage:
+      volumeClaimTemplate:
+        spec:
+          resources:
+            requests:
+              storage: "1Gi"
+    resources:
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+      requests:
+        cpu: "0.5"
+        memory: "500Mi"
+  vminsert:
+    replicaCount: 2
+    resources:
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+      requests:
+        cpu: "0.5"
+        memory: "500Mi"

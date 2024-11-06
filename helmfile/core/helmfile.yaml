@@ -73,15 +73,32 @@ releases:
 - name: vmoperator
   namespace: monitoring
   chart: vm/victoria-metrics-operator
+  installed: false
   values:
+    - ./values/vm.yaml.gotmpl
     - admissionWebhooks:
         enabled: false
+
+- name: vmks
+  namespace: monitoring
+  chart: vm/victoria-metrics-k8s-stack
+  installed: true 
+  values:
+    - ./values/vmks.yaml.gotmpl
+
+- name: vmks-post
+  namespace: monitoring 
+  chart: bjw-s/app-template
+  needs:
+    - monitoring/vmks
+  values:
+    - ./values/vmks-post.yaml.gotmpl
 
 - name: ingress-nginx
   namespace: ingress-nginx
   chart: ingress-nginx/ingress-nginx
   needs:
-    - monitoring/vmoperator 
+    - monitoring/vmks
   values:
     - ./values/ingress-nginx.yaml.gotmpl
 
@@ -89,7 +106,7 @@ releases:
   namespace: ingress-nginx
   chart: bjw-s/app-template
   needs:
-    - monitoring/vmoperator 
+    - monitoring/vmks
     - ingress-nginx/ingress-nginx 
   values:
     - ./values/ingress-nginx-post.yaml.gotmpl
@@ -127,7 +144,7 @@ releases:
   namespace: longhorn-system
   chart: bjw-s/app-template
   needs:
-    - monitoring/vmoperator 
+    - monitoring/vmks
     - longhorn-system/longhorn 
   values:
   - ./values/longhorn-post.yaml.gotmpl
@@ -186,6 +203,7 @@ releases:
 - name: vector-agent 
   namespace: monitoring
   chart: vector/vector 
+  installed: false
   values:
     - values/vector.yaml.gotmpl
 
@@ -237,6 +255,6 @@ releases:
 - name: mongodb-operator
   namespace: mongodb-system
   chart: mongodb/community-operator
-  installed: true 
+  installed: false 
   values:
     - values/mongodb-operator.yaml.gotmpl

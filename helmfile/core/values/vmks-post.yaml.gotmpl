@@ -1,0 +1,20 @@
+---
+global:
+  fullnameOverride: {{trimSuffix "-post" .Release.Name}} 
+
+rawResources:
+  grafana-oidc:
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    spec:
+      spec:
+        refreshInterval: 60s
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: external-secrets-secret-store-scw
+        target:
+          name: grafana-oidc
+          creationPolicy: Owner
+        dataFrom:
+          - extract:
+              key: path:/k8s/prod/apps/grafana-oidc

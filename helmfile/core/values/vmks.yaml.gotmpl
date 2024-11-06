@@ -1,0 +1,102 @@
+# K3S specific stuff,
+# taken from https://github.com/k3s-io/k3s/issues/3619
+# Unfortunately hardcoded IPs, so just disable these for now
+# Disabling these disables a lot of the monitoring...
+# But it's on a best-effort basis
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+victoria-metrics-operator:
+  operator:
+    disable_prometheus_converter: false
+
+vmsingle:
+  enabled: true
+
+externalVM:
+  # -- Custom VMAuth config, url_prefix requires only path, which will be appended to a read and write base URL.
+  # To disable auth for read or write empty list for component config `externalVM.vmauth.<component>: []`
+  vmauth:
+    read:
+    write:
+
+vmauth:
+  enabled: true 
+  annotations: {}
+  # -- (object) Full spec for VMAuth CRD. Allowed values described [here](https://docs.victoriametrics.com/operator/api#vmauthspec)
+  spec:
+    selectAllByDefault: true
+    userNamespaceSelector: {}
+    userSelector: {}
+    ingress:
+      class_name: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/description: Service monitoring
+        gethomepage.dev/group: Admin
+        gethomepage.dev/name: VMui
+      tlsHosts:
+      - "vm-access.{{ .Values.domain }}"
+      tlsSecretName: vmauth-tls
+
+grafana:
+  # We disable the admin account creation via grafana.ini
+  # This value is added here just to avoid unnecessary secret changes
+  #adminPassword: admin
+
+  envValueFrom:
+    GF_AUTH_GENERIC_OAUTH_CLIENT_ID:
+      secretKeyRef:
+        name: grafana-oidc
+        key: OAUTH_ID 
+    GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
+      secretKeyRef:
+        name: grafana-oidc
+        key: OAUTH_SECRET 
+  defaultDashboardsTimezone: Europe/Paris
+  plugins:
+    - grafana-piechart-panel
+
+
+  grafana.ini:
+    # log:
+    #  level: debug
+    server:
+      root_url: https://grafana.{{ .Values.domain }}
+    security:
+      disable_initial_admin_creation: false 
+    auth.generic_oauth:
+      enabled: true
+      name: Authentik 
+      allow_sign_up: true
+      auto_login: true
+      scopes: "openid profile email"
+      auth_url: https://auth.mazenet.org/application/o/authorize/ 
+      token_url: https://auth.mazenet.org/application/o/token/
+      api_url: https://auth.mazenet.org/application/o/userinfo/ 
+      role_attribute_path: contains(groups[*], 'monitoring-admins') && 'GrafanaAdmin' || contains(groups[*], 'monitoring-editors') && 'Editor' || 'Viewer'
+      allow_assign_grafana_admin: true
+    auth.signout:
+      redirect_url: https://auth.mazenet.org/application/o/grafana/end-session/
+  ingress:
+    enabled: true
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/description: Dashboards
+      gethomepage.dev/group: Monitoring
+      gethomepage.dev/icon: grafana.png
+      gethomepage.dev/name: Grafana
+      gethomepage.dev/app: grafana
+    ingressClassName: nginx
+    hosts:
+      - &host "grafana.{{ .Values.domain }}"
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - *host
