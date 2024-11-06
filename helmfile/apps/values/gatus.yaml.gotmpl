@@ -1,0 +1,228 @@
+controllers:
+  main:
+    #strategy: Recreate
+    strategy: RollingUpdate
+    containers:
+      main:
+        image:
+          repository: twinproduction/gatus
+          tag: latest 
+          pullPolicy: IfNotPresent
+        envFrom:
+          - secret: telegram
+        env:
+          - name: POSTGRES_URI
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Release.Name }}-cluster-app
+                key: uri 
+        probes:
+          readiness:
+            enabled: true
+          liveness:
+            enabled: true
+          startup:
+            enabled: true
+            spec:
+              failureThreshold: 30
+
+secrets:
+  telegram:
+    stringData:
+      TELEGRAM_TOKEN: {{.Values.telegramBotToken}}
+      TELEGRAM_CHATID: "{{.Values.telegramChatId}}"
+
+service:
+  main:
+    controller: main
+    ports:
+      http:
+        port: 8080 
+
+ingress:
+  main:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/description: Service monitoring 
+      gethomepage.dev/group: Admin 
+      gethomepage.dev/icon: gatus.png
+      gethomepage.dev/name: gatus 
+    hosts:
+      - host: &host "gatus.{{ .Values.domain }}"
+        paths:
+          - path: /
+            service:
+              identifier: main
+    tls:
+      - secretName: gatus-tls
+        hosts:
+          - *host
+
+persistence:
+  config:
+    enabled: true
+    type: configMap
+    name: {{ $.Release.Name }}-config
+    advancedMounts:
+      main:
+        main:
+          - path: /config/config.yaml
+            subPath: config.yaml
+
+configMaps:
+  config:
+    enabled: true
+    data:
+      config.yaml: |
+        storage:
+          type: postgres
+          path: "${POSTGRES_URI}"
+        alerting:
+          telegram:
+            token: "${TELEGRAM_TOKEN}" 
+            id: "${TELEGRAM_CHATID}"
+            default-alert:
+              description: "health check failed"
+              send-on-resolved: true
+              failure-threshold: 1
+              success-threshold: 1
+        endpoints:
+          - name: Gateway 
+            group: core
+            url: "icmp://10.83.101.1"
+            conditions:
+              - "[CONNECTED] == true"
+            alerts:
+              - type: telegram 
+
+          - name: mikrotik-dyndns 
+            group: core
+            interval: 30s
+            url: "1.1.1.1" 
+            dns:
+              query-name: "d4f00c3166f1.sn.mynetname.net"
+              query-type: "A"
+            conditions:
+              - "[DNS_RCODE] == NOERROR"
+
+          - name: adguard-google
+            group: core
+            interval: 30s
+            url: "10.83.100.2" 
+            dns:
+              query-name: "google.com"
+              query-type: "A"
+            conditions:
+              - "[DNS_RCODE] == NOERROR"
+
+          - name: ping-google
+            group: core
+            url: "icmp://8.8.8.8"
+            conditions:
+              - "[CONNECTED] == true"
+            alerts:
+              - type: telegram 
+
+          - name: ping-cloudflare
+            group: core
+            url: "icmp://1.1.1.1"
+            conditions:
+              - "[CONNECTED] == true"
+            alerts:
+              - type: telegram 
+
+          - name: Goauthentik 
+            group: core 
+            url: "https://auth.mazenet.org/"
+            interval: 30s
+            conditions:
+              - "[STATUS] == 200"
+              - "[CERTIFICATE_EXPIRATION] > 48h"
+            alerts:
+              - type: telegram 
+
+          - name: ChangeDetection.io 
+            group: apps 
+            url: "https://changedetection.int.mazenet.org/"
+            interval: 30s
+            conditions:
+              - "[STATUS] == 200"
+              - "[CERTIFICATE_EXPIRATION] > 48h"
+            alerts:
+              - type: telegram 
+
+          - name: Plex
+            group: apps 
+            url: "https://plex.int.mazenet.org/"
+            interval: 30s
+            conditions:
+              - "[STATUS] == 401"
+              - "[CERTIFICATE_EXPIRATION] > 48h"
+            alerts:
+              - type: telegram 
+
+          - name: Ztnet 
+            group: apps 
+            url: "https://ztnet.int.mazenet.org/"
+            interval: 30s
+            conditions:
+              - "[STATUS] == 200"
+              - "[CERTIFICATE_EXPIRATION] > 48h"
+            alerts:
+              - type: telegram 
+
+          - name: Ztnet Online 
+            group: apps 
+            url: "https://ztnet.mazenet.org/"
+            interval: 30s
+            conditions:
+              - "[STATUS] == 200"
+              - "[CERTIFICATE_EXPIRATION] > 48h"
+            alerts:
+              - type: telegram 
+rawResources:
+  cnpg-backup-secret:
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    spec:
+      spec:
+        refreshInterval: 60s
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: external-secrets-secret-store-scw
+        target:
+          name: cnpg-backup
+          creationPolicy: Owner
+        dataFrom:
+          - extract:
+              key: path:/k8s/prod/core/cnpg-backup
+              version: latest_enabled
+
+cluster:
+  cluster:
+    instances: 1
+    initdb:
+      owner: {{.Release.Name}} 
+      database: {{.Release.Name}} 
+    monitoring:
+      customQueries: []
+      disableDefaultQueries: true
+      enabled: false
+    storage:
+      size: 8Gi
+
+  backups:
+    enabled: true
+    schedule: "0 * * * *" 
+    retentionPolicy: "7d" 
+
+    destinationPath: "s3://mazenet-cnpg-backup/{{.Release.Name}}"
+    endpointURL: "https://s3.fr-par.scw.cloud"
+    secret:
+      create: false
+      name: "cnpg-backup"
+
+

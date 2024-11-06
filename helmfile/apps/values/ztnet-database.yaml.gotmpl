@@ -1,3 +1,6 @@
+type: postgresql
+mode: recovery
+
 cluster:
   instances: 1
   initdb:
@@ -11,8 +14,8 @@ cluster:
     size: 8Gi
 
 backups:
-  enabled: true
-  schedule: "0 * * * *" 
+  enabled: false 
+  schedule: "0 * * * * *" 
   retentionPolicy: "7d" 
 
   destinationPath: "s3://mazenet-cnpg-backup/ztnet"
@@ -21,4 +24,10 @@ backups:
     create: false
     name: "cnpg-backup"
 
-
+recovery:
+  #cluster-name: database-cluster
+  destinationPath: "s3://mazenet-cnpg-backup/ztnet"
+  endpointURL: "https://s3.fr-par.scw.cloud"
+  secret:
+    create: false
+    name: "cnpg-backup"

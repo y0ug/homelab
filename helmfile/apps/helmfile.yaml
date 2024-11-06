@@ -20,22 +20,38 @@ templates:
 
 ---
 releases:
-- name: database
-  namespace: ztnet
-  chart: cnpg/cluster
-  installed: true 
-  values:
-    - values/ztnet-database.yaml.gotmpl
-
 - name: ztnet 
   namespace: ztnet 
+  installed: true 
+  dependencies:
+    - chart: cnpg/cluster
+      version: v0.1.0
+  inherit:
+    - template: default
+
+- name: unifi-controller 
+  namespace: unifi-controller
   installed: true 
   inherit:
     - template: default
 
+- name: homepage 
+  namespace: homepage 
+  installed: true 
+  inherit:
+    - template: default
 
-- name: unifi-controller 
-  namespace: unifi-controller
+- name: gatus 
+  namespace: gatus 
+  installed: true 
+  dependencies:
+    - chart: cnpg/cluster
+      version: v0.1.0
+  inherit:
+    - template: default
+
+- name: changedetection 
+  namespace: changedetection 
   installed: true 
   inherit:
     - template: default

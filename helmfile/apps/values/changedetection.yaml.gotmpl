@@ -1,0 +1,110 @@
+---
+defaultPodOptions:
+  hostname: ztnet
+controllers:
+  main:
+    strategy: Recreate
+    replicas: 1
+    containers:
+      main:
+        image:
+          repository: dgtlmoon/changedetection.io
+          pullPolicy: IfNotPresent
+          tag: latest
+
+
+service:
+  main:
+    controller: main
+    ports:
+      http:
+        port: 5000 
+        protocol: HTTP
+
+
+ingress:
+  main:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/description: Website monitoring 
+      gethomepage.dev/group: Admin 
+      gethomepage.dev/icon: smoke-detector-variant.png
+      gethomepage.dev/name: ChangeDetection.io 
+      nginx.ingress.kubernetes.io/auth-signin: {{.Values.config.sso_auth_signin }}
+      nginx.ingress.kubernetes.io/auth-url: {{ .Values.config.sso_auth_url }}?allowed_groups=media-admins,download-admins
+    hosts:
+      - host: &host "changedetection.{{ .Values.domain }}"
+        paths:
+          - path: /
+            service:
+              identifier: main
+    tls:
+      - secretName: changedetection-tls
+        hosts:
+          - *host
+
+persistence:
+  datastore:
+    enabled: true
+    type: persistentVolumeClaim
+    accessMode: ReadWriteOnce
+    size: 10Gi
+    globalMounts:
+        - path: /datastore
+
+
+
+rawResources:
+
+  rclone-secret:
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    spec:
+      spec:
+        refreshInterval: 60s
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: external-secrets-secret-store-scw
+        target:
+          name: rclone-secret
+          creationPolicy: Owner
+        dataFrom:
+          - extract:
+              key: path:/k8s/prod/core/volsync-rclone
+              version: latest_enabled
+
+
+
+  config-source:
+    apiVersion: volsync.backube/v1alpha1
+    kind: ReplicationSource
+    spec:
+      spec:
+        sourcePVC: {{.Release.Name }}-datastore
+        trigger:
+          schedule: "8 * * * *"
+        rclone:
+          rcloneConfigSection: "rclone-bucket"
+          rcloneDestPath: "mazenet-volsync-backup-4/{{.Release.Name}}-datastore"
+          rcloneConfig: "rclone-secret"
+          copyMethod: Snapshot
+
+    # config-dest:
+    #   apiVersion: volsync.backube/v1alpha1
+    #   kind: ReplicationDestination
+    #   spec:
+    #     spec:
+    #       trigger:
+    #         manual: restore-backup-2
+    #       rclone:
+    #         rcloneConfigSection: "rclone-bucket"
+    #         rcloneDestPath: "mazenet-volsync-backup-4/{{.Release.Name}}-datastore"
+    #         rcloneConfig: "rclone-secret"
+    #         copyMethod: Snapshot
+    #         accessModes: [ReadWriteOnce]
+    #         capacity: 1Gi
+
+

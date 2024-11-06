@@ -1,18 +1,11 @@
 ---
 defaultPodOptions:
   hostname: ztnet
-#   securityContext:
-#     sysctls:
-#     - name: net.ipv6.conf.all.disable_ipv6
-#       value: "1"
-#     - name: net.ipv6.conf.default.disable_ipv6
-#       value: "1"
 controllers:
   main:
     strategy: Recreate
     replicas: 1
     containers:
-
       ztnet:
         image:
           repository: sinamics/ztnet
@@ -28,28 +21,29 @@ controllers:
           - name: POSTGRES_USER
             valueFrom:
               secretKeyRef:
-                name: database-cluster-app
+                name: {{ .Release.Name }}-cluster-app
                 key: username
           - name: POSTGRES_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: database-cluster-app
-                key: password 
-          - name: POSTGRES_HOST 
+                name: {{ .Release.Name }}-cluster-app
+                key: password
+          - name: POSTGRES_HOST
             valueFrom:
               secretKeyRef:
-                name: database-cluster-app
-                key: host 
-          - name: POSTGRES_PORT 
+                name: {{ .Release.Name }}-cluster-app
+                key: host
+          - name: POSTGRES_PORT
             valueFrom:
               secretKeyRef:
-                name: database-cluster-app
-                key: port 
+                name: {{ .Release.Name }}-cluster-app
+                key: port
           - name: POSTGRES_DB
             valueFrom:
               secretKeyRef:
-                name: database-cluster-app
+                name: {{ .Release.Name }}-cluster-app
                 key: dbname
+
         envFrom:
           - secret: {{.Release.Name}}-oauth2 
 
@@ -93,7 +87,7 @@ ingress:
       gethomepage.dev/enabled: "true"
       gethomepage.dev/description: Zerotier management 
       gethomepage.dev/group: Admin 
-      gethomepage.dev/icon: ztnet.png
+      gethomepage.dev/icon: zerotier.png
       gethomepage.dev/name: ztnet 
     hosts:
       - host: &host "ztnet.{{ .Values.domain }}"
@@ -142,4 +136,102 @@ rawResources:
         dataFrom:
           - extract:
               key: path:/k8s/prod/apps/ztnet
+
+  rclone-secret:
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    spec:
+      spec:
+        refreshInterval: 60s
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: external-secrets-secret-store-scw
+        target:
+          name: rclone-secret
+          creationPolicy: Owner
+        dataFrom:
+          - extract:
+              key: path:/k8s/prod/core/volsync-rclone
               version: latest_enabled
+
+  cnpg-backup-secret:
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    spec:
+      spec:
+        refreshInterval: 60s
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: external-secrets-secret-store-scw
+        target:
+          name: cnpg-backup
+          creationPolicy: Owner
+        dataFrom:
+          - extract:
+              key: path:/k8s/prod/core/cnpg-backup
+              version: latest_enabled
+
+
+  config-source:
+    apiVersion: volsync.backube/v1alpha1
+    kind: ReplicationSource
+    spec:
+      spec:
+        sourcePVC: {{.Release.Name }}-zerotier
+        trigger:
+          schedule: "8 * * * *"
+        rclone:
+          rcloneConfigSection: "rclone-bucket"
+          rcloneDestPath: "mazenet-volsync-backup-4/{{.Release.Name}}-config"
+          rcloneConfig: "rclone-secret"
+          copyMethod: Snapshot
+
+    # config-dest:
+    #   apiVersion: volsync.backube/v1alpha1
+    #   kind: ReplicationDestination
+    #   spec:
+    #     spec:
+    #       trigger:
+    #         manual: restore-backup-2
+    #       rclone:
+    #         rcloneConfigSection: "rclone-bucket"
+    #         rcloneDestPath: "mazenet-volsync-backup-4/{{.Release.Name}}-config"
+    #         rcloneConfig: "rclone-secret"
+    #         copyMethod: Snapshot
+    #         accessModes: [ReadWriteOnce]
+    #         capacity: 1Gi
+
+cluster:
+  # type: postgresql
+  # mode: recovery
+
+  cluster:
+    instances: 1
+    initdb:
+      owner: {{.Release.Name}} 
+      database: {{.Release.Name}} 
+    monitoring:
+      customQueries: []
+      disableDefaultQueries: true
+      enabled: false
+    storage:
+      size: 8Gi
+
+  backups:
+    enabled: true
+    schedule: "0 * * * * *" 
+    retentionPolicy: "7d" 
+
+    destinationPath: "s3://mazenet-cnpg-backup/{{.Release.Name}}"
+    endpointURL: "https://s3.fr-par.scw.cloud"
+    secret:
+      create: false
+      name: "cnpg-backup"
+
+  # recovery:
+  #   cluster-name: database-cluster
+  #   destinationPath: "s3://mazenet-cnpg-backup/{{.Release.Name}}"
+  #   endpointURL: "https://s3.fr-par.scw.cloud"
+  #   secret:
+  #     create: false
+  #     name: "cnpg-backup"

@@ -11,3 +11,6 @@ config:
 domain: int.mazenet.org
 default_issuer: cert-manager-letsencrypt-prod
 data_pvc: nfs-media-pvc
+
+volsync:
+  rcloneDestPath: mazenet-volsync-backup-4

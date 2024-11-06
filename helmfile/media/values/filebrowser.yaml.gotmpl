@@ -34,6 +34,11 @@ ingress:
       gethomepage.dev/group: Media
       gethomepage.dev/icon: filebrowser.png
       gethomepage.dev/name: Filebrowser 
+      nginx.ingress.kubernetes.io/auth-signin: {{.Values.config.sso_auth_signin }}
+      nginx.ingress.kubernetes.io/auth-url: {{ .Values.config.sso_auth_url }}?allowed_groups=media-admins,download-admins
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      nginx.ingress.kubernetes.io/server-snippet: |
+        client_max_body_size 0;
     hosts:
       - host: &host "filebrowser.{{ .Values.domain }}"
         paths:

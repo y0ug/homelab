@@ -48,6 +48,8 @@ ingress:
       gethomepage.dev/group: Media
       gethomepage.dev/icon: sonarr.png
       gethomepage.dev/name: Sonarr 
+      nginx.ingress.kubernetes.io/auth-signin: {{.Values.config.sso_auth_signin }}
+      nginx.ingress.kubernetes.io/auth-url: {{ .Values.config.sso_auth_url }}?allowed_groups=media-admins,download-admins
       nginx.ingress.kubernetes.io/proxy-body-size: "0"
       nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
       nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
@@ -106,22 +108,9 @@ rawResources:
             manual: restore-backup-2
           rclone:
             rcloneConfigSection: "rclone-bucket"
-            rcloneDestPath: "mazenet-volsync-backup-4/{{.Release.Name}}-config"
+            rcloneDestPath: "{{.Values.volsync.rcloneDestPath}}/{{.Release.Name}}-config"
             rcloneConfig: "rclone-secret"
             copyMethod: Snapshot
             accessModes: [ReadWriteOnce]
             capacity: 1Gi
-  config-dest:
-      apiVersion: volsync.backube/v1alpha1
-      kind: ReplicationDestination
-      spec:
-        spec:
-          trigger:
-            manual: restore-backup-2
-          rclone:
-            rcloneConfigSection: "rclone-bucket"
-            rcloneDestPath: "mazenet-volsync-backup-4/{{.Release.Name}}-config"
-            rcloneConfig: "rclone-secret"
-            copyMethod: Snapshot
-            accessModes: [ReadWriteOnce]
-            capacity: 1Gi
+

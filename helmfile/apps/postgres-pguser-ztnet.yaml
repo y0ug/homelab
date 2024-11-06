@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-pguser-ztnet 
-  labels:
-    postgres-operator.crunchydata.com/cluster: postgres 
-    postgres-operator.crunchydata.com/pguser: ztnet 
-stringData:
-  password: fd98b7ac7a7257acdcc8e6c2bc6f1c81 
