@@ -36,3 +36,10 @@ rawResources:
                     name: cf-apikey
                     key: apikey
               selector: {}
+
+  selfsigned:
+    apiVersion: cert-manager.io/v1
+    kind: ClusterIssuer
+    spec:
+      spec:
+        selfSigned: {}

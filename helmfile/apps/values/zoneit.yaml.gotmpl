@@ -1,0 +1,41 @@
+---
+controllers:
+  main:
+    strategy: Recreate
+    replicas: 1
+    containers:
+      main:
+        image:
+          repository: ghcr.io/y0ug/zoneit
+          pullPolicy: IfNotPresent
+          tag: v0.1.16 
+        envFrom:
+          - secret: zoneit-config 
+
+
+service:
+  main:
+    controller: main
+    ports:
+      http:
+        port: 8000 
+        protocol: TCP 
+
+secrets:
+  config:
+    enabled: true
+    stringData:
+      {{ .Values.zoneit | toYaml |  nindent 6 }}
+
+# rawResources:
+#   mktxp:
+#     apiVersion: operator.victoriametrics.com/v1beta1
+#     kind: VMServiceScrape
+#     spec:
+#       spec:
+#         endpoints:
+#         - port: metrics
+#           interval: 30s
+#         selector:
+#           matchLabels:
+#             app.kubernetes.io/name: {{.Release.Name}} 

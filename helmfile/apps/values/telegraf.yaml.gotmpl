@@ -1,0 +1,128 @@
+---
+controllers:
+  main:
+    strategy: Recreate
+    replicas: 1
+    containers:
+      main:
+        image:
+          repository: telegraf 
+          pullPolicy: IfNotPresent
+          tag: latest 
+
+
+service:
+  main:
+    controller: main
+    ports:
+      http:
+        port: 8000 
+        protocol: TCP 
+
+
+
+persistence:
+  settings:
+    enabled: true 
+    type: configMap
+    name: {{$.Release.Name}}-config 
+    advancedMounts:
+      main:
+        main:
+          - path: /etc/telegraf/telegraf.conf
+            subPath: telegraf.conf
+
+configMaps:
+  config:
+    enabled: true 
+    data:
+      telegraf.conf: |
+        [agent]
+          ## Default data collection interval for all inputs
+          interval = "1s"
+          ## Rounds collection interval to 'interval'
+          ## ie, if interval="10s" then always collect on :00, :10, :20, etc.
+          round_interval = true
+
+          ## Telegraf will send metrics to outputs in batches of at most
+          ## metric_batch_size metrics.
+          ## This controls the size of writes that Telegraf sends to output plugins.
+          metric_batch_size = 1000
+
+          ## Maximum number of unwritten metrics per output.  Increasing this value
+          ## allows for longer periods of output downtime without dropping metrics at the
+          ## cost of higher maximum memory usage.
+          metric_buffer_limit = 10000
+
+          ## Collection jitter is used to jitter the collection by a random amount.
+          ## Each plugin will sleep for a random time within jitter before collecting.
+          ## This can be used to avoid many plugins querying things like sysfs at the
+          ## same time, which can have a measurable effect on the system.
+          collection_jitter = "0s"
+
+          ## Default flushing interval for all outputs. Maximum flush_interval will be
+          ## flush_interval + flush_jitter
+          flush_interval = "1s"
+          ## Jitter the flush interval by a random amount. This is primarily to avoid
+          ## large write spikes for users running a large number of telegraf instances.
+          ## ie, a jitter of 5s and interval 10s means flushes will happen every 10-15s
+          flush_jitter = "0s"
+
+          ## By default or when set to "0s", precision will be set to the same
+          ## timestamp order as the collection interval, with the maximum being 1s.
+          ##   ie, when interval = "10s", precision will be "1s"
+          ##       when interval = "250ms", precision will be "1ms"
+          ## Precision will NOT be used for service inputs. It is up to each individual
+          ## service input to set the timestamp at the appropriate precision.
+          ## Valid time units are "ns", "us" (or "┬╡s"), "ms", "s".
+          precision = ""
+
+          ## Override default hostname, if empty use os.Hostname()
+          hostname = ""
+          ## If set to true, do no set the "host" tag in the telegraf agent.
+          omit_hostname = true 
+
+        [[outputs.influxdb]]
+          urls = ["http://vmauth-vmks-victoria-metrics-k8s-stack.monitoring.svc.cluster.local.:8427"]
+          #database = "victoriametrics"
+          skip_database_creation = true
+          exclude_retention_policy_tag = true
+          content_encoding = "gzip"
+
+        # [[outputs.http]]
+        #   url = "https://grafana.int.mazenet.org/api/live/push/telegraf"
+        #   data_format = "influx"
+        #   [outputs.http.headers]
+        #     Authorization = "Bearer {{ $.Values.telegraf.grafana_live_token }}"
+
+        [[outputs.websocket]]
+          url = "wss://grafana.int.mazenet.org/api/live/push/telegraf"
+          data_format = "influx"
+          [outputs.websocket.headers]
+            Authorization = "Bearer {{ $.Values.telegraf.grafana_live_token }}"
+
+        [[inputs.mqtt_consumer]]
+          servers = ["{{ $.Values.telegraf.mqtt_url }}"]
+
+          topics = [
+            "mazenet/home/#",
+          ]
+
+
+          username = "{{ $.Values.telegraf.mqtt_username }}"
+          password = "{{ $.Values.telegraf.mqtt_password }}" 
+
+          data_format = "influx"
+
+# rawResources:
+#   mktxp:
+#     apiVersion: operator.victoriametrics.com/v1beta1
+#     kind: VMServiceScrape
+#     spec:
+#       spec:
+#         endpoints:
+#         - port: metrics
+#           interval: 30s
+#         selector:
+#           matchLabels:
+#             app.kubernetes.io/name: {{.Release.Name}} 

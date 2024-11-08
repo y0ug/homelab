@@ -86,6 +86,13 @@ releases:
   values:
     - ./values/vmks.yaml.gotmpl
 
+- name: vmlogs 
+  namespace: monitoring
+  chart: vm/victoria-logs-single
+  installed: true 
+  values:
+    - ./values/vmlogs.yaml.gotmpl
+
 - name: vmks-post
   namespace: monitoring 
   chart: bjw-s/app-template
@@ -128,7 +135,11 @@ releases:
 
 - name:  snapshot-controller
   namespace: kube-system
+  needs:
+    - cert-manager/cert-manager
   chart: piraeus-charts/snapshot-controller
+  values:
+    - ./values/snapshot-controller.yaml.gotmpl
 
 - name:  csi-driver-nfs
   namespace: kube-system

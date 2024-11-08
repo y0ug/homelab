@@ -13,22 +13,32 @@ kubeProxy:
 victoria-metrics-operator:
   operator:
     disable_prometheus_converter: false
+  admissionWebhooks:
+    certManager:
+      enabled: true
 
 vmsingle:
   enabled: true
 
-externalVM:
-  # -- Custom VMAuth config, url_prefix requires only path, which will be appended to a read and write base URL.
-  # To disable auth for read or write empty list for component config `externalVM.vmauth.<component>: []`
-  vmauth:
-    read:
-    write:
+vmagent:
+  enabled: true
+  # spec for VMAgent crd
+  # https://docs.victoriametrics.com/operator/api.html#vmagentspec
+  spec:
+    resources:
+      limits:
+        cpu: "1000m"
+        memory: "500Mi"
+      requests:
+        cpu: "1000m"
+        memory: "500Mi"
 
 vmauth:
   enabled: true 
   annotations: {}
   # -- (object) Full spec for VMAuth CRD. Allowed values described [here](https://docs.victoriametrics.com/operator/api#vmauthspec)
   spec:
+    discover_backend_ips: false 
     selectAllByDefault: true
     userNamespaceSelector: {}
     userSelector: {}
@@ -36,7 +46,7 @@ vmauth:
       class_name: nginx
       annotations:
         cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
-        gethomepage.dev/enabled: "true"
+        gethomepage.dev/enabled: "false"
         gethomepage.dev/description: Service monitoring
         gethomepage.dev/group: Admin
         gethomepage.dev/name: VMui
@@ -44,10 +54,14 @@ vmauth:
       - "vm-access.{{ .Values.domain }}"
       tlsSecretName: vmauth-tls
 
+defaultDashboards:
+  enabled: true
+  defaultTimezone: Europe/Paris 
+
 grafana:
   # We disable the admin account creation via grafana.ini
   # This value is added here just to avoid unnecessary secret changes
-  #adminPassword: admin
+  adminPassword: admin
 
   envValueFrom:
     GF_AUTH_GENERIC_OAUTH_CLIENT_ID:
@@ -58,7 +72,6 @@ grafana:
       secretKeyRef:
         name: grafana-oidc
         key: OAUTH_SECRET 
-  defaultDashboardsTimezone: Europe/Paris
   plugins:
     - grafana-piechart-panel
 
@@ -87,6 +100,8 @@ grafana:
     enabled: true
     annotations:
       cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600" # for better websocket support
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
       gethomepage.dev/enabled: "true"
       gethomepage.dev/description: Dashboards
       gethomepage.dev/group: Monitoring

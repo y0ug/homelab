@@ -52,6 +52,30 @@ releases:
 
 - name: changedetection 
   namespace: changedetection 
-  installed: true 
+  inherit:
+    - template: default
+
+- name: unpoller 
+  namespace: monitoring-ext 
+  inherit:
+    - template: default
+
+- name: mktxp 
+  namespace: monitoring-ext 
+  inherit:
+    - template: default
+
+- name: telegraf 
+  namespace: monitoring-ext 
+  inherit:
+    - template: default
+
+- name: zoneit 
+  namespace: zoneit 
+  inherit:
+    - template: default
+
+- name: mqtt-notif 
+  namespace: monitoring-ext 
   inherit:
     - template: default

@@ -1,0 +1,28 @@
+fluent-bit:
+  enabled: true
+
+server:
+  persistentVolume:
+    enabled: true 
+    size: 20Gi
+
+  ingress:
+    # disabling ingress, we are using the vmks vmauth in front instead
+    enabled: false 
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+    ingressClassName: nginx
+    hosts:
+      - name: "vmlogs.{{.Values.domain}}"
+        path:
+          - /
+        port: http
+    tls:
+      - secretName: vmlogs-tls
+        hosts: 
+          - "vmlogs.{{ .Values.domain }}"
+
+dashboards:
+  enabled: true 
+
+

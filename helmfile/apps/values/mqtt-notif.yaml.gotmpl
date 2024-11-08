@@ -1,0 +1,22 @@
+---
+controllers:
+  main:
+    strategy: Recreate
+    replicas: 1
+    containers:
+      main:
+        image:
+          repository: ghcr.io/y0ug/mqtt-notif
+          pullPolicy: IfNotPresent
+          tag: v0.1.4
+        envFrom:
+          - secret: config 
+
+
+secrets:
+  config:
+    enabled: true
+    stringData:
+      {{ .Values.mqtt_notif | toYaml |  nindent 6 }}
+
+

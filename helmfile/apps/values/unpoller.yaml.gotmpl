@@ -1,0 +1,45 @@
+---
+controllers:
+  main:
+    strategy: Recreate
+    replicas: 1
+    containers:
+      main:
+        image:
+          repository: ghcr.io/unpoller/unpoller
+          pullPolicy: IfNotPresent
+          tag: latest
+        envFrom:
+          - secret: unifi-creds
+        env:
+          UP_INFLUXDB_DISABLE: "true"
+          UP_PROMETHEUS_NAMESPACE: unpoller
+
+service:
+  main:
+    controller: main
+    ports:
+      metrics:
+        port: 9130 
+        protocol: TCP 
+
+secrets:
+  unifi-creds:
+    enabled: true
+    stringData:
+      UP_UNIFI_DEFAULT_USER: {{.Values.unifi.user}}
+      UP_UNIFI_DEFAULT_PASS: {{.Values.unifi.pass}}
+      UP_UNIFI_DEFAULT_URL: {{.Values.unifi.url}}
+
+rawResources:
+  unpoller:
+    apiVersion: operator.victoriametrics.com/v1beta1
+    kind: VMServiceScrape
+    spec:
+      spec:
+        endpoints:
+        - port: metrics
+          interval: 30s
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: {{.Release.Name}} 
