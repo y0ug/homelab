@@ -8,7 +8,7 @@ controllers:
         image:
           repository: ghcr.io/y0ug/zoneit
           pullPolicy: IfNotPresent
-          tag: v0.1.16 
+          tag: v0.1.19 
         envFrom:
           - secret: zoneit-config 
 
@@ -19,13 +19,29 @@ service:
     ports:
       http:
         port: 8000 
-        protocol: TCP 
 
 secrets:
   config:
     enabled: true
     stringData:
       {{ .Values.zoneit | toYaml |  nindent 6 }}
+
+ingress:
+  main:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+    hosts:
+      - host: &host "zoneit.{{ .Values.domain }}"
+        paths:
+          - path: /
+            service:
+              identifier: main
+    tls:
+      - secretName: zoneit-tls
+        hosts:
+          - *host
 
 # rawResources:
 #   mktxp:

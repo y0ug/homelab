@@ -79,3 +79,8 @@ releases:
   namespace: monitoring-ext 
   inherit:
     - template: default
+
+- name: adguardhome 
+  namespace: adguardhome 
+  inherit:
+    - template: default
