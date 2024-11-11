@@ -8,9 +8,15 @@ repositories:
 environments:
   default:
     values:
-    - ../env/default.yaml
+    - ../env/prod/default.yaml
     secrets:
-    - ../env/secrets.yaml
+    - ../env/prod/secrets.yaml
+
+  dev:
+    values:
+    - ../env/dev/default.yaml
+    secrets:
+    - ../env/dev/secrets.yaml
 
 templates:
   default: &default

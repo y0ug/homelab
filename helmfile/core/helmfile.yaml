@@ -52,15 +52,21 @@ repositories:
 environments:
   default:
     values:
-    - ../env/default.yaml
+    - ../env/prod/default.yaml
     secrets:
-    - ../env/secrets.yaml
+    - ../env/prod/secrets.yaml
 
+  dev:
+    values:
+    - ../env/dev/default.yaml
+    secrets:
+    - ../env/dev/secrets.yaml
 ---
 releases:
 - name: metallb
   chart: metallb/metallb 
   namespace: metallb-system
+  installed: {{ eq .Environment.Name "default" | toYaml }}
 
 - name: metallb-post
   namespace: metallb-system
@@ -69,6 +75,7 @@ releases:
     - ./values/metallb-post.yaml.gotmpl
   needs:
     - metallb-system/metallb
+  installed: {{ eq .Environment.Name "default" | toYaml }}
 
 - name: vmoperator
   namespace: monitoring
@@ -79,44 +86,7 @@ releases:
     - admissionWebhooks:
         enabled: false
 
-- name: vmks
-  namespace: monitoring
-  chart: vm/victoria-metrics-k8s-stack
-  installed: true 
-  values:
-    - ./values/vmks.yaml.gotmpl
 
-- name: vmlogs 
-  namespace: monitoring
-  chart: vm/victoria-logs-single
-  installed: true 
-  values:
-    - ./values/vmlogs.yaml.gotmpl
-
-- name: vmks-post
-  namespace: monitoring 
-  chart: bjw-s/app-template
-  needs:
-    - monitoring/vmks
-  values:
-    - ./values/vmks-post.yaml.gotmpl
-
-- name: ingress-nginx
-  namespace: ingress-nginx
-  chart: ingress-nginx/ingress-nginx
-  needs:
-    - monitoring/vmks
-  values:
-    - ./values/ingress-nginx.yaml.gotmpl
-
-- name: ingress-nginx-post
-  namespace: ingress-nginx
-  chart: bjw-s/app-template
-  needs:
-    - monitoring/vmks
-    - ingress-nginx/ingress-nginx 
-  values:
-    - ./values/ingress-nginx-post.yaml.gotmpl
 
 
 - name: external-secrets 
@@ -140,6 +110,22 @@ releases:
   chart: piraeus-charts/snapshot-controller
   values:
     - ./values/snapshot-controller.yaml.gotmpl
+
+- name: cert-manager 
+  namespace: cert-manager
+  chart: jetstack/cert-manager
+  needs:
+    - external-secrets/external-secrets
+  values:
+    - values/cert-manager.yaml.gotmpl
+
+- name: cert-manager-post
+  namespace: cert-manager
+  chart: bjw-s/app-template
+  needs:
+    - cert-manager/cert-manager
+  values:
+    - values/cert-manager-post.yaml.gotmpl
 
 - name:  csi-driver-nfs
   namespace: kube-system
@@ -171,22 +157,50 @@ releases:
   chart: external-dns/external-dns
   values:
     - ./values/external-dns.yaml.gotmpl
- 
-- name: cert-manager 
-  namespace: cert-manager
-  chart: jetstack/cert-manager
-  needs:
-    - external-secrets/external-secrets
-  values:
-    - values/cert-manager.yaml.gotmpl
 
-- name: cert-manager-post
-  namespace: cert-manager
-  chart: bjw-s/app-template
+- name: vmks
+  namespace: monitoring
+  chart: vm/victoria-metrics-k8s-stack
   needs:
     - cert-manager/cert-manager
+  installed: true 
   values:
-    - values/cert-manager-post.yaml.gotmpl
+    - ./values/vmks.yaml.gotmpl
+
+- name: vmlogs 
+  namespace: monitoring
+  chart: vm/victoria-logs-single
+  installed: true 
+
+  values:
+    - ./values/vmlogs.yaml.gotmpl
+
+- name: vmks-post
+  namespace: monitoring 
+  chart: bjw-s/app-template
+  needs:
+    - monitoring/vmks
+  values:
+    - ./values/vmks-post.yaml.gotmpl
+
+- name: ingress-nginx
+  namespace: ingress-nginx
+  chart: ingress-nginx/ingress-nginx
+  needs:
+    - monitoring/vmks
+  values:
+    - ./values/ingress-nginx.yaml.gotmpl
+
+- name: ingress-nginx-post
+  namespace: ingress-nginx
+  chart: bjw-s/app-template
+  needs:
+    - monitoring/vmks
+    - ingress-nginx/ingress-nginx 
+  values:
+    - ./values/ingress-nginx-post.yaml.gotmpl
+
+
 
 - name: oauth2-proxy
   namespace: oauth2-proxy
@@ -221,11 +235,13 @@ releases:
 - name: nfd
   chart: nfd/node-feature-discovery
   namespace: node-feature-discovery
+  installed: {{ eq .Environment.Name "default" | toYaml }}
 
 - name: intel-device-plugins-operator
   chart: intel/intel-device-plugins-operator
   namespace: intel-gpu
   disableValidationOnInstall: true 
+  installed: {{ eq .Environment.Name "default" | toYaml }}
   needs:
     - node-feature-discovery/nfd
     - cert-manager/cert-manager
@@ -234,6 +250,7 @@ releases:
   chart: intel/intel-device-plugins-gpu
   namespace: intel-gpu
   disableValidationOnInstall: true 
+  installed: {{ eq .Environment.Name "default" | toYaml }}
   needs:
     - intel-device-plugins-operator
   values:

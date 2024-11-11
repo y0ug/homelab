@@ -1,6 +1,4 @@
 ---
-defaultPodOptions:
-  hostname: ztnet
 controllers:
   main:
     strategy: Recreate
@@ -15,6 +13,11 @@ controllers:
 
 service:
   main:
+    annotations:
+      external-dns.alpha.kubernetes.io/hostname: adguardhome.{{.Values.domain}}
+      metallb.universe.tf/loadBalancerIPs: 10.83.101.102,fd33:f4d4:cad1:101:10::102
+    #ipFamilyPolicy: RequireDualStack
+    ipFamilyPolicy: PreferDualStack
     controller: main
     type: LoadBalancer 
     externalTrafficPolicy: Local
