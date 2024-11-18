@@ -28,7 +28,7 @@ templates:
 releases:
 - name: ztnet 
   namespace: ztnet 
-  installed: true 
+  installed: false 
   dependencies:
     - chart: cnpg/cluster
       version: v0.1.0
@@ -88,5 +88,15 @@ releases:
 
 - name: adguardhome 
   namespace: adguardhome 
+  inherit:
+    - template: default
+
+- name: it-tools 
+  namespace: it-tools 
+  inherit:
+    - template: default
+
+- name: hass 
+  namespace: hass 
   inherit:
     - template: default

@@ -1,0 +1,108 @@
+---
+controllers:
+  main:
+    strategy: Recreate
+    replicas: 1
+    containers:
+      main:
+        image:
+          repository: lscr.io/linuxserver/calibre-web
+          pullPolicy: IfNotPresent
+          tag: latest
+        probes:
+          readiness:
+            enabled: true
+          liveness:
+            enabled: true
+
+        env: {}
+
+service:
+  main:
+    controller: main
+    ports:
+      http:
+        port: 8083 
+
+ingress:
+  main:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/description: Ebooks manager
+      gethomepage.dev/group: Media
+      gethomepage.dev/icon: calibre.png
+      gethomepage.dev/name: "Calibre"
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    hosts:
+      - host: &host "calibre.{{ .Values.domain }}"
+        paths:
+          - path: /
+            service:
+              identifier: main
+    tls:
+      - secretName: calibre-tls
+        hosts:
+          - *host
+
+persistence:
+  config:
+    enabled: true 
+    type: persistentVolumeClaim
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    globalMounts:
+      - path: /config
+    # dataSourceRef:
+    #       kind: ReplicationDestination
+    #       apiGroup: volsync.backube
+    #       name: {{.Release.Name}}-config-dest 
+
+  books:
+    enabled: true 
+    type: persistentVolumeClaim
+    accessMode: ReadWriteOnce
+    size: 10Gi
+    globalMounts:
+      - path: /books
+
+  data:
+    enabled: true
+    type: persistentVolumeClaim
+    existingClaim: {{ .Values.data_pvc }} 
+    globalMounts:
+      - path: /data
+
+rawResources:
+  config-source:
+    apiVersion: volsync.backube/v1alpha1
+    kind: ReplicationSource
+    spec:
+      spec:
+        sourcePVC: {{.Release.Name }}-config
+        trigger:
+          schedule: "10 * * * *"
+        rclone:
+          rcloneConfigSection: "rclone-bucket"
+          rcloneDestPath: "mazenet-volsync-backup-4/{{.Release.Name}}-config"
+          rcloneConfig: "rclone-secret"
+          copyMethod: Snapshot
+
+  # config-dest:
+  #     apiVersion: volsync.backube/v1alpha1
+  #     kind: ReplicationDestination
+  #     spec:
+  #       spec:
+  #         trigger:
+  #           manual: restore-backup-2
+  #         rclone:
+  #           rcloneConfigSection: "rclone-bucket"
+  #           rcloneDestPath: "mazenet-volsync-backup-4/{{.Release.Name}}-config"
+  #           rcloneConfig: "rclone-secret"
+  #           copyMethod: Snapshot
+  #           accessModes: [ReadWriteOnce]
+  #           capacity: 1Gi

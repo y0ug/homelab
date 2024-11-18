@@ -31,7 +31,7 @@ ingress:
       gethomepage.dev/enabled: "true"
       gethomepage.dev/description: Website monitoring 
       gethomepage.dev/group: Admin 
-      gethomepage.dev/icon: smoke-detector-variant.png
+      gethomepage.dev/icon: si-smoke-detector-variant.png
       gethomepage.dev/name: ChangeDetection.io 
       nginx.ingress.kubernetes.io/auth-signin: {{.Values.config.sso_auth_signin }}
       nginx.ingress.kubernetes.io/auth-url: {{ .Values.config.sso_auth_url }}?allowed_groups=media-admins,download-admins

@@ -1,0 +1,155 @@
+---
+#hostNetwork: true
+
+controllers:
+  main:
+    type: statefulset
+    replicas: 1
+    # pod:
+    #   hostNetwork: true
+    containers:
+      main:
+        image:
+          repository: ghcr.io/home-assistant/home-assistant
+          tag: 2024.8.0
+          pullPolicy: IfNotPresent
+        # probes:
+          # readiness:
+          #   enabled: false 
+            # tcpSocket:
+            #   port: 8123
+          # liveness:
+          #   enabled: true
+          # startup:
+          #   enabled: true
+          #   spec:
+          #     failureThreshold: 15
+        resources:
+          limits:
+            memory: 1000Mi
+          requests:
+            memory: 250Mi
+
+service:
+  main:
+    controller: main
+    ports:
+      http:
+        port: 8123
+
+  iot:
+    annotations:
+      external-dns.alpha.kubernetes.io/hostname: hass-iot.{{.Values.domain}}
+      metallb.universe.tf/loadBalancerIPs: 10.83.101.103,fd33:f4d4:cad1:101:10::103
+    controller: main
+    ipFamilyPolicy: PreferDualStack
+    type: LoadBalancer 
+    externalTrafficPolicy: Local
+    ports:
+      shelly-coap:
+        port: 5683 
+        targetPort: 5683 
+        protocol: UDP 
+
+ingress:
+  main:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/description: Home Assistant
+      gethomepage.dev/group: IoT
+      gethomepage.dev/icon: home-assistant.png
+      gethomepage.dev/name: Home Automation
+    hosts:
+      - host: &host "hass.{{ .Values.domain }}"
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            service:
+              identifier: main
+    tls:
+      - secretName: {{.Release.Name}}-tls
+        hosts:
+          - *host
+
+
+persistence:
+  config-storage:
+    enabled: true
+    type: persistentVolumeClaim
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    globalMounts:
+      - path: /config
+
+  config:
+    enabled: true
+    type: configMap
+    name: {{.Release.Name}}-config
+    advancedMounts:
+      main:
+        main:
+          - path: /config/configuration.yaml
+            subPath: configuration.yaml
+
+configMaps:
+  config:
+    enabled: true
+    data:
+      configuration.yaml: |
+        # Loads default set of integrations. Do not remove.
+        default_config:
+
+        # Load frontend themes from the themes folder
+        #frontend:
+        #  themes: !include_dir_merge_named themes
+
+        #automation: !include automations.yaml
+        #script: !include scripts.yaml
+        #scene: !include scenes.yaml
+
+        prometheus:
+          namespace: hass
+
+        http:
+          use_x_forwarded_for: true
+          # TODO: this looks pretty much like a hardcode
+          # does our ansible setup make any guarantees about the CIDR for pods?
+          #trusted_proxies: "10.42.0.0/16"
+          # TODO: this is a very much hardcoded node IP
+          trusted_proxies:
+            - 0.0.0.0/0
+        # homekit:
+        #   port: 31333
+        #   name: HASS Bridge
+
+        logger:
+          default: warning
+          logs:
+            #homeassistant.components.homekit: debug
+            #pyhap: debug
+            aioshelly: debug
+            homeassistant.components.shelly: debug
+            homeassistant.components.mqtt: debug
+
+        sensor:
+          - platform: bitcoin
+            display_options:
+              - exchangerate
+              - trade_volume_btc
+
+rawResources:
+  metrics:
+    apiVersion: operator.victoriametrics.com/v1beta1
+    kind: VMServiceScrape
+    spec:
+      spec:
+        endpoints:
+        - port: http 
+          path: /api/prometheus
+          interval: 1m 
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: {{.Release.Name}} 

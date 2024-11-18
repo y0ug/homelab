@@ -11,6 +11,7 @@ config:
 domain: int.mazenet.org
 default_issuer: cert-manager-letsencrypt-prod
 selfsigned_issuer: cert-manager-selfsigned
+storage_class: longhorn-default
 data_pvc: nfs-media-pvc
 volsync:
   rcloneDestPath: mazenet-volsync-backup-4

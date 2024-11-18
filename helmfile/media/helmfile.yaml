@@ -5,7 +5,7 @@ repositories:
 environments:
   default:
     values:
-    - ../env/default.yaml
+    - ../env/prod/default.yaml
 
 templates:
   default: &default
@@ -50,3 +50,22 @@ releases:
   inherit:
     - template: default 
 
+- name: overseerr
+  inherit:
+    - template: default 
+
+- name: readarr 
+  inherit:
+    - template: default 
+
+- name: lidarr 
+  inherit:
+    - template: default 
+
+- name: calibre-web 
+  inherit:
+    - template: default 
+
+- name: bazarr 
+  inherit:
+    - template: default 

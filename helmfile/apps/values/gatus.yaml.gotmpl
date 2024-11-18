@@ -144,13 +144,13 @@ configMaps:
             alerts:
               - type: telegram 
 
-          - name: ChangeDetection.io 
-            group: apps 
-            url: "https://changedetection.int.mazenet.org/"
-            interval: 30s
-            conditions:
-              - "[STATUS] == 200"
-              - "[CERTIFICATE_EXPIRATION] > 48h"
+          # - name: ChangeDetection.io 
+          #   group: apps 
+          #   url: "https://changedetection.int.mazenet.org/"
+          #   interval: 30s
+          #   conditions:
+          #     - "[STATUS] == 200"
+          #     - "[CERTIFICATE_EXPIRATION] > 48h"
 
           - name: Plex
             group: apps 
