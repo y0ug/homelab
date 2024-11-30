@@ -1,0 +1,59 @@
+---
+
+controllers:
+  main:
+    replicas: 1
+    pod:
+      imagePullSecrets: 
+        - name: {{ .Release.Name }}-regcred
+    containers:
+      main:
+        image:
+          repository: rg.fr-par.scw.cloud/mazenet-cr/c2app-level1
+          tag: latest 
+          pullPolicy: IfNotPresent
+        probes:
+          readiness:
+            enabled: true
+          liveness:
+            enabled: true
+service:
+  main:
+    controller: main
+    ports:
+      http:
+        port: 8000
+
+ingress:
+  main:
+    enabled: true 
+    className: cloudflare-tunnel 
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    hosts:
+      - host: &host "5v9e1a1t65.codsec.com"
+        paths:
+          - path: /
+            service:
+              identifier: main
+
+rawResources:
+  regcred:
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    spec:
+      spec:
+        refreshInterval: 60s 
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: external-secrets-secret-store-scw
+        target:
+          template:
+            type: kubernetes.io/dockerconfigjson
+          name: {{ .Release.Name }}-regcred
+          creationPolicy: Owner
+        dataFrom:
+          - extract:
+              key: path:/k8s/prod/core/cr-scw
+              version: latest_enabled
+

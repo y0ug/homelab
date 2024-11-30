@@ -100,3 +100,8 @@ releases:
   namespace: hass 
   inherit:
     - template: default
+
+- name: c2app-level1 
+  namespace: c2app 
+  inherit:
+    - template: default

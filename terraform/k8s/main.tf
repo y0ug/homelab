@@ -6,7 +6,7 @@ terraform {
     }
     scaleway = {
       source  = "scaleway/scaleway"
-      version = "2.46.0"
+      version = "2.47.0"
     }
     cloudflare = {
       source  = "cloudflare/cloudflare"
@@ -33,4 +33,5 @@ provider "scaleway" {
   region = "fr-par"
   zone   = "fr-par-1"
 }
+
 
