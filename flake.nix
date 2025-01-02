@@ -13,15 +13,15 @@
       system:
       let
         # pkgs = nixpkgs.legacyPackages.${system};
+        formatter = nixpkgs.legacyPackages."${system}".nixfmt;
         pkgs = import nixpkgs {
           inherit system;
           config = {
-            allowUnfreePredicate = pkg: builtins.elem(nixpkgs.lib.getName pkg)[
+            allowUnfreePredicate = pkg: builtins.elem (nixpkgs.lib.getName pkg) [
               "terraform"
             ];
           };
         };
-
         my-kubernetes-helm = with pkgs; wrapHelm kubernetes-helm {
           plugins = with pkgs.kubernetes-helmPlugins; [
             helm-secrets
@@ -36,8 +36,7 @@
         };
       in
       {
-        formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixpkgs-fmt;
-        devShells.default = pkgs.mkShell { 
+        devShells.default = pkgs.mkShell {
           name = "homelab tools";
           packages = with pkgs; [
             bashInteractive
@@ -50,6 +49,7 @@
             kubectx
             kubetail
             kind
+            nixpkgs-fmt
           ];
           # nativeBuildInputs = [ pkgs.bashInteractive ];
           # # packages = [ pkgs.bashInteractive ]; };
@@ -62,7 +62,7 @@
           #     ];
           #   })
           # ];
-      };
+        };
       }
     );
 }
