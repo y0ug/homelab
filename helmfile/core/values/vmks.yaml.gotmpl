@@ -74,9 +74,13 @@ grafana:
         key: OAUTH_SECRET 
   plugins:
     - grafana-piechart-panel
+    - https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.8.0/victorialogs-datasource-v0.8.0.zip;victorialogs-datasource
 
 
   grafana.ini:
+    plugins:
+      allow_loading_unsigned_plugins: victorialogs-datasource
+
     # log:
     #  level: debug
     server:

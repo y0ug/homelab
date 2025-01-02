@@ -1,0 +1,130 @@
+controllers:
+  main:
+    #strategy: Recreate
+    strategy: RollingUpdate
+    containers:
+      main:
+        image:
+          repository: ghcr.io/zhaofengli/attic
+          tag: latest 
+          pullPolicy: IfNotPresent
+        envFrom:
+          - secret: attic 
+        env:
+          - name: POSTGRES_URI
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Release.Name }}-cluster-app
+                key: uri 
+        probes:
+          readiness:
+            enabled: true
+          liveness:
+            enabled: true
+          startup:
+            enabled: true
+            spec:
+              failureThreshold: 30
+
+secrets:
+  attic:
+    stringData:
+      ATTIC_SERVER_TOKEN_HS256_SECRET_BASE64: "O33MuNwgp5W5+2LVX/bNjyzIFnt7+t9sIySamdw9xUxYTh8FHKNtzuqtctyRZZrTKNxWDjGfCHP5+mfXb5/q6w=="{{ /* .Values.atticSecret  */}}
+
+service:
+  main:
+    controller: main
+    ports:
+      http:
+        port: 8080 
+
+ingress:
+  main:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: {{ .Values.default_issuer }}
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/description: Nixos cache server 
+      gethomepage.dev/group: Admin 
+      gethomepage.dev/icon: gatus.png
+      gethomepage.dev/name: gatus 
+    hosts:
+      - host: &host "attic.{{ .Values.domain }}"
+        paths:
+          - path: /
+            service:
+              identifier: main
+    tls:
+      - secretName: attic-tls
+        hosts:
+          - *host
+
+persistence:
+  config:
+    enabled: true
+    type: configMap
+    name: {{ $.Release.Name }}-config
+    advancedMounts:
+      main:
+        main:
+          - path: /config/config.yaml
+            subPath: config.yaml
+
+configMaps:
+  config:
+    enabled: true
+    data:
+      config.toml: |
+        api-endpoint = "https://attic.int.mazenet.org/"
+        listen = "[::]:8080"
+        # token-hs256-secret-base64 = ""
+
+        [database]
+        url = "${POSTGRES_URI}"
+
+
+
+rawResources:
+  cnpg-backup-secret:
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    spec:
+      spec:
+        refreshInterval: 60s
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: external-secrets-secret-store-scw
+        target:
+          name: cnpg-backup
+          creationPolicy: Owner
+        dataFrom:
+          - extract:
+              key: path:/k8s/prod/core/cnpg-backup
+              version: latest_enabled
+
+cluster:
+  cluster:
+    instances: 1
+    initdb:
+      owner: {{.Release.Name}} 
+      database: {{.Release.Name}} 
+    monitoring:
+      customQueries: []
+      disableDefaultQueries: true
+      enabled: false
+    storage:
+      size: 8Gi
+
+  backups:
+    enabled: true
+    schedule: "0 * * * *" 
+    retentionPolicy: "7d" 
+
+    destinationPath: "s3://mazenet-cnpg-backup/{{.Release.Name}}"
+    endpointURL: "https://s3.fr-par.scw.cloud"
+    secret:
+      create: false
+      name: "cnpg-backup"
+
+

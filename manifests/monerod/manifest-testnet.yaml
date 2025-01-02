@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: monerod
+  name: monerod-stagenet
   namespace: crypto 
   labels:
-    app: monerod
+    app: monerod-stagenet
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: monerod
+      app: monerod-stagenet
   template:
     metadata:
       labels:
-        app: monerod
+        app: monerod-stagenet
     spec:
       # nodeSelector:
       #   app: dl-node
@@ -27,14 +27,16 @@ spec:
           - "--no-zmq"
           - "--confirm-external-bind"
           - "--out-peers=1000"
+          - "--disable-rpc-ban"
+          - "--stagenet"
         ports:
-        - containerPort: 18081
+        - containerPort: 38081
         volumeMounts:
-        - name: bitmonero-storage
+        - name: bitmonero-stagenet-storage
           mountPath: /home/monero/.bitmonero
-          subPath: bitmonero
+          subPath: bitmonero-stagenet
       volumes:
-      - name: bitmonero-storage
+      - name: bitmonero-stagenet-storage
         persistentVolumeClaim:
           claimName: nfs-blockchains-pvc
 
@@ -75,14 +77,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: monerod-service
+  name: monerod-stagenet-service
   namespace: crypto 
   labels:
-    app: monerod
+    app: monerod-stagenet
 spec:
   ports:
-  - port: 18081
-    targetPort: 18081
+  - port: 38081
+    targetPort: 38081
   selector:
-    app: monerod
+    app: monerod-stagenet
   type: LoadBalancer 

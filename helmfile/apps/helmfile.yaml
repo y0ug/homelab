@@ -4,6 +4,8 @@ repositories:
   url: https://bjw-s.github.io/helm-charts
 - name: cnpg
   url: https://cloudnative-pg.github.io/charts
+- name: ocis
+  url: https://owncloud.github.io/ocis/helm
 
 environments:
   default:
@@ -49,6 +51,15 @@ releases:
 
 - name: gatus 
   namespace: gatus 
+  installed: true 
+  dependencies:
+    - chart: cnpg/cluster
+      version: v0.1.0
+  inherit:
+    - template: default
+
+- name: attic 
+  namespace: attic 
   installed: true 
   dependencies:
     - chart: cnpg/cluster
