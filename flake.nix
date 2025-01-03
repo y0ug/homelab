@@ -65,6 +65,7 @@
 
 		            shellHook = ''
 					export SHELL=${pkgs.zsh}/bin/zsh
+          source scripts/activate.sh
             exec zsh
           '';
         };

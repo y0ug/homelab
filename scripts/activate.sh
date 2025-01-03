@@ -19,7 +19,7 @@ _setup_secrets() {
   sops -d "$SRC/scw.sops.yaml" >"$DEST/scw.dec.yaml"
   sops -d --output-type dotenv "$SRC/terraform.sops.yaml" >"$DEST/terraform.dec.env"
 
-  export KUBE_CONFIG_PATH="$DEST/kube_config.dec.yaml"
+  export KUBECONFIG="$DEST/kube_config.dec.yaml"
   export SCW_CONFIG_PATH="$DEST/scw.dec.yaml"
   export SECRETS_ACTIVATED=1
 

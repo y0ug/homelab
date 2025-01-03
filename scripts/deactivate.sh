@@ -17,6 +17,6 @@ if [ -f "$(pwd)/.dec/terraform.dec.env" ]; then
     fi
   done <"$(pwd)/.dec/terraform.dec.env"
 fi
-unset KUBE_CONFIG_PATH
+unset KUBECONFIG
 unset SCW_CONFIG_PATH
 unset SECRETS_ACTIVATED
