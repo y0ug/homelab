@@ -42,6 +42,22 @@
         my-helmfile = pkgs.helmfile-wrapped.override {
           inherit (my-kubernetes-helm) pluginsDir;
         };
+
+        # Create the zsh config script inline
+        zshConfig = ''
+          # Source user's existing zshrc if it exists
+          if [ -f $HOME/.zshrc ]; then
+            source $HOME/.zshrc
+          fi
+          
+          # Set up our custom aliases
+          #export SCRIPT_DIR=$(realpath ./scripts)
+          alias secrets.activate="source \$SCRIPT_DIR/secrets.activate"
+          alias secrets.deactivate="source \$SCRIPT_DIR/secrets.deactivate"
+          
+          # Add scripts to PATH
+          #export PATH=$SCRIPT_DIR:$PATH
+        '';
       in
       {
         devShells.default = pkgs.mkShell {
@@ -61,12 +77,36 @@
             nixpkgs-fmt
             scaleway-cli
             sops
+            opentofu
           ];
 
 		            shellHook = ''
-					export SHELL=${pkgs.zsh}/bin/zsh
-          source scripts/activate.sh
-            exec zsh
+            export SHELL=${pkgs.zsh}/bin/zsh
+            export ZDOTDIR=$(mktemp -d)
+            
+            # First export SCRIPT_DIR
+            export SCRIPT_DIR=$(realpath ./scripts)
+            
+            # Create zshrc with proper variable expansion
+            cat > $ZDOTDIR/.zshrc << 'EOL'
+            # Source user's existing zshrc if it exists
+            if [ -f $HOME/.zshrc ]; then
+              source $HOME/.zshrc
+            fi
+            EOL
+            
+            # Append the configuration that needs variable expansion
+            cat >> $ZDOTDIR/.zshrc << EOL
+            # Custom configuration
+            export SCRIPT_DIR=$SCRIPT_DIR
+            alias secrets.activate="source \$SCRIPT_DIR/secrets.activate"
+            alias secrets.deactivate="source \$SCRIPT_DIR/secrets.deactivate"
+            # Terraform/OpenTofu configuration
+            alias terraform_="$(which terraform)"  # Store original terraform path
+            alias terraform="tofu"                # Make 'terraform' command use OpenTofu
+            export PATH=\$SCRIPT_DIR:\$PATH
+            EOL
+            exec $SHELL 
           '';
         };
       }
