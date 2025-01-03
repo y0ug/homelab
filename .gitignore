@@ -1,4 +1,4 @@
 .direnv
 *.env
 *.dec.*
-.kube_config.yaml
+.dec
