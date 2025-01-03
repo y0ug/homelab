@@ -36,10 +36,27 @@
         "type": "github"
       }
     },
+    "nixpkgs-helm-secrets": {
+      "locked": {
+        "lastModified": 1710318316,
+        "narHash": "sha256-Qv3jlvehirWElay87c5eCp5uNDWea4i162uefO60Dq0=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "eb4f8bd5bb4fba814205693346bf5aaf9d17dfb0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "eb4f8bd5bb4fba814205693346bf5aaf9d17dfb0",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
+        "nixpkgs-helm-secrets": "nixpkgs-helm-secrets",
         "systems": "systems"
       }
     },

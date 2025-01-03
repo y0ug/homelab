@@ -4,6 +4,7 @@ controllers:
     strategy: RollingUpdate
     containers:
       main:
+        command: ["atticd", "-f", "/attic/server.toml", "--mode", "monolithic"]
         image:
           repository: ghcr.io/zhaofengli/attic
           tag: latest 
@@ -29,7 +30,7 @@ controllers:
 secrets:
   attic:
     stringData:
-      ATTIC_SERVER_TOKEN_HS256_SECRET_BASE64: "O33MuNwgp5W5+2LVX/bNjyzIFnt7+t9sIySamdw9xUxYTh8FHKNtzuqtctyRZZrTKNxWDjGfCHP5+mfXb5/q6w=="{{ /* .Values.atticSecret  */}}
+      ATTIC_SERVER_TOKEN_HS256_SECRET_BASE64: "O33MuNwgp5W5+2LVX/bNjyzIFnt7+t9sIySamdw9xUxYTh8FHKNtzuqtctyRZZrTKNxWDjGfCHP5+mfXb5/q6w=="
 
 service:
   main:
@@ -68,20 +69,50 @@ persistence:
     advancedMounts:
       main:
         main:
-          - path: /config/config.yaml
-            subPath: config.yaml
+          - path: /attic/server.toml
+            subPath: server.toml
 
+  data:
+    enabled: true 
+    type: persistentVolumeClaim
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    globalMounts:
+      - path: /data
+    # dataSourceRef:
+    #       kind: ReplicationDestination
+    #       apiGroup: volsync.backube
+    #       name: {{.Release.Name}}-config-dest 
+    
 configMaps:
   config:
     enabled: true
     data:
-      config.toml: |
+      server.toml: |
         api-endpoint = "https://attic.int.mazenet.org/"
         listen = "[::]:8080"
         # token-hs256-secret-base64 = ""
-
+        
         [database]
-        url = "${POSTGRES_URI}"
+        url = "sqlite:///data/attic.db?mode=rwc"
+
+        [storage]
+        type = "s3"
+        endpoint = "https://s3.fr-par.scw.cloud"
+        region = "auto"
+        bucket = "mazenet-nixoscache"
+        
+        [chunking]
+        nar-size-threshold = 65536
+        min-size = 16384
+        avg-size = 65536
+        max-size = 262144
+
+        [compression]
+        type = "zstd"
+
+        [garbage-collection]
+        interval = "12 hours"
 
 
 
@@ -102,7 +133,22 @@ rawResources:
           - extract:
               key: path:/k8s/prod/core/cnpg-backup
               version: latest_enabled
-
+  nixoscache-secret:
+    apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    spec:
+      spec:
+        refreshInterval: 60s
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: external-secrets-secret-store-scw
+        target:
+          name: nixoscache 
+          creationPolicy: Owner
+        dataFrom:
+          - extract:
+              key: path:/k8s/prod/core/nixoscache-s3
+              version: latest_enabled
 cluster:
   cluster:
     instances: 1
