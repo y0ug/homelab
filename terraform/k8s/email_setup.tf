@@ -33,12 +33,14 @@ resource "cloudflare_record" "mazenet_spf" {
 
 locals {
   dkim_content = scaleway_tem_domain.main.dkim_config
+  dkim_part1 = substr(local.dkim_content, 0, 254)
+  dkim_part2 = substr(local.dkim_content, 254, -1)
 }
 
 resource "cloudflare_record" "mazenet_dkim" {
   zone_id = data.cloudflare_zone.mazenet.id
   name    = "${scaleway_tem_domain.main.project_id}._domainkey"
-  content = "\"${local.dkim_content}\""
+  content = "\"${join("\" \"", regexall(".{1,255}", local.dkim_content))}\""
   type    = "TXT"
 }
 
