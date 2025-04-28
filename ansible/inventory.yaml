@@ -66,3 +66,17 @@ all:
           # k3s_etcd_datastore: true
           # k3s_control_node: true
           is_bare_metal: true
+
+    mikrotik:
+      vars:
+        ansible_ssh_common_args: "-J bastion"
+        ansible_user: "admin"
+        ansible_connection: ansible.netcommon.network_cli
+        ansible_network_os: community.routeros.routeros
+      hosts:
+        # hm01-rt01:
+        #   ansible_host: 10.83.10.1
+        hm01-sw01:
+          ansible_host: 10.83.10.251
+        hm01-sw02:
+          ansible_host: 10.83.10.252
