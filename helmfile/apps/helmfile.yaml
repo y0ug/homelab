@@ -60,7 +60,7 @@ releases:
 
 - name: attic 
   namespace: attic 
-  installed: true 
+  installed: false
   dependencies:
     - chart: cnpg/cluster
       version: v0.1.0
@@ -69,6 +69,7 @@ releases:
 
 - name: changedetection 
   namespace: changedetection 
+  installed: false
   inherit:
     - template: default
 
@@ -84,6 +85,7 @@ releases:
 
 - name: telegraf 
   namespace: monitoring-ext 
+  installed: false
   inherit:
     - template: default
 
@@ -114,5 +116,89 @@ releases:
 
 - name: c2app-level1 
   namespace: c2app 
+  inherit:
+    - template: default
+
+# - name: crypto-storage
+#   namespace: crypto
+#   createNamespace: true
+#   installed: true
+#   chart: bjw-s/app-template
+#   values:
+#     - rawResources:
+#         blockchain-storage-class:
+#           apiVersion: storage.k8s.io/v1
+#           kind: StorageClass
+#           spec:
+#             metadata:
+#               name: blockchain-nfs-storage
+#             provisioner: nfs.csi.k8s.io
+#             parameters:
+#               server: 10.83.101.5
+#               share: /mnt/hot/blockchains
+#               mountPermissions: "0777"
+#             reclaimPolicy: Retain
+#             volumeBindingMode: Immediate
+#
+#         blockchain-pvc:
+#           apiVersion: v1
+#           kind: PersistentVolumeClaim
+#           spec:
+#             metadata:
+#               name: blockchain-data
+#               namespace: crypto
+#             spec:
+#               storageClassName: blockchain-nfs-storage
+#               accessModes:
+#                 - ReadWriteMany
+#               resources:
+
+
+
+- name: crypto-storage
+  namespace: crypto
+  createNamespace: true
+  installed: true
+  chart: bjw-s/app-template
+  values:
+    - rawResources:
+        nfs-blockchains-pv:
+          apiVersion: v1
+          kind: PersistentVolume
+          annotations:
+            pv.kubernetes.io/provisioned-by: nfs.csi.k8s.io
+          spec:
+            spec:
+              capacity:
+                storage: 10Gi
+              accessModes:
+                - ReadWriteOnce
+              persistentVolumeReclaimPolicy: Retain
+              storageClassName: nfs-blockchains
+              mountOptions:
+                - nfsvers=4.1
+              csi:
+                driver: nfs.csi.k8s.io
+                volumeHandle: 10.83.101.5##
+                volumeAttributes:
+                  server: 10.83.101.5
+                  share: /mnt/hot/blockchains
+        nfs-blockchains-pvc:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          spec:
+            spec:
+              storageClassName: nfs-blockchains
+              accessModes: [ReadWriteOnce]
+              resources:
+                requests:
+                  storage: 5Mi
+
+- name: monerod
+  namespace: crypto 
+  createNamespace: true 
+  installed: true 
+  needs:
+    - crypto/crypto-storage
   inherit:
     - template: default

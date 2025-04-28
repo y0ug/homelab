@@ -1,0 +1,23 @@
+---
+- name: Update system packages
+  hosts: k3s_cluster
+  become: true
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: full
+
+    - name: Reboot if required
+      reboot:
+        reboot_timeout: 600
+      when: ansible_pkg_mgr == 'apt' and reboot_required_file.stat.exists
+
+    - name: Wait for the systems to come back online
+      wait_for_connection:
+        delay: 10
+        timeout: 300

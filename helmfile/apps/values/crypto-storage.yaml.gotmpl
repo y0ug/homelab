@@ -1,0 +1,28 @@
+---
+rawResources:
+  blockchain-storage-class:
+    apiVersion: storage.k8s.io/v1
+    kind: StorageClass
+    metadata:
+      name: blockchain-nfs-storage
+    provisioner: nfs.csi.k8s.io
+    parameters:
+      server: 10.83.101.5
+      share: /mnt/hot/blockchains
+      mountPermissions: "0777"
+    reclaimPolicy: Retain
+    volumeBindingMode: Immediate
+
+  blockchain-pvc:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: blockchain-data
+      namespace: crypto
+    spec:
+      storageClassName: blockchain-nfs-storage
+      accessModes:
+        - ReadWriteMany
+      resources:
+        requests:
+          storage: 500Gi

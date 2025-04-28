@@ -1,0 +1,52 @@
+# values/monerod.yaml.gotmpl
+controllers:
+  main:
+    type: deployment
+    replicas: 1
+    containers:
+      main:
+        image:
+          repository: ghcr.io/sethforprivacy/simple-monerod
+          tag: latest
+          pullPolicy: IfNotPresent
+        args:
+          - "--rpc-bind-ip=0.0.0.0"
+          - "--enable-dns-blocklist"
+          - "--no-igd"
+          - "--no-zmq"
+          - "--confirm-external-bind"
+          - "--out-peers=1000"
+
+        probes:
+          liveness: &probes
+            enabled: true
+            custom: true
+            spec:
+              httpGet:
+                path: /get_info # Monero RPC endpoint for basic health check
+                port: 18081
+              initialDelaySeconds: 60
+              periodSeconds: 30
+              timeoutSeconds: 10
+              failureThreshold: 5
+          readiness: *probes # Use the same probe for readiness initially
+          startup:
+            enabled: false # Startup probe might be complex depending on sync state
+
+service:
+  main:
+    controller: main  
+    type: LoadBalancer
+    ports:
+      http:
+        port: 18081
+        targetPort: 18081
+
+persistence:
+  bitmonero-data:
+    enabled: true
+    type: persistentVolumeClaim
+    existingClaim: crypto-storage-nfs-blockchains-pvc
+    globalMounts:
+      - path: /home/monero/.bitmonero
+        subPath: bitmonero

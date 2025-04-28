@@ -6,7 +6,7 @@ all:
   children:
     dhcp_hosts:
       vars:
-        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
         gateway: 10.83.101.1
         netmask: 255.255.255.0
         dns_servers:
@@ -46,7 +46,6 @@ all:
         k8s-worker-04.int.mazenet.org:
         k8s-worker-05.int.mazenet.org:
 
-
     k3s_cluster:
       hosts:
         k8s-worker-01.int.mazenet.org:
@@ -55,15 +54,15 @@ all:
         k8s-worker-02.int.mazenet.org:
           k3s_etcd_datastore: true
           k3s_control_node: true
-        k8s-worker-03.int.mazenet.org:
-          k3s_etcd_datastore: true
-          k3s_control_node: true
-          is_bare_metal: true
+        # k8s-worker-03.int.mazenet.org:
+        #   k3s_etcd_datastore: true
+        #   k3s_control_node: true
+        #   is_bare_metal: true
         k8s-worker-04.int.mazenet.org:
           k3s_etcd_datastore: true
           k3s_control_node: true
           is_bare_metal: true
         k8s-worker-05.int.mazenet.org:
-          k3s_etcd_datastore: true
-          k3s_control_node: true
+          # k3s_etcd_datastore: true
+          # k3s_control_node: true
           is_bare_metal: true

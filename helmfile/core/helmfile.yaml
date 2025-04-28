@@ -286,3 +286,4 @@ releases:
   installed: false 
   values:
     - values/mongodb-operator.yaml.gotmpl
+
