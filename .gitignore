@@ -1,4 +1,8 @@
+.devenv/
+.venv/
+.devenv.flake.nix
 .direnv
 *.env
 *.dec.*
 .dec
+.zfunctions/
